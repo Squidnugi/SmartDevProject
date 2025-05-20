@@ -13,7 +13,7 @@ users can see their other devices in other networks not currently connected to
 users are not directly connected to smartdevices, the creation of a smarthome is required first
 there can be multiple smarthomes in a network
 users connected to a network can see all the smarthomes in that network"""
-
+#figure out a way to manage time with a text based gui
 
 
 
