@@ -108,7 +108,7 @@ class SmartThermostat(SmartDevice):
         self.temperature -= amount
         print(f"{self.name} temperature decreased to {self.temperature}.")
 
-class SmartSecurityCamera(SmartDevice):
+class SmartCamera(SmartDevice):
     def __init__(self, name, resolution="1080p"):
         super().__init__(name, "Security Camera")
         self.resolution = resolution
