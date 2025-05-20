@@ -1,3 +1,4 @@
+
 class Network:
     def __init__(self, ip_address):
         self.ip_address = ip_address
@@ -13,3 +14,11 @@ class Network:
     def list_devices_in_network(self):
         for i in self.smart_homes:
             i.list_smart_devices()
+
+    def remove_smart_home(self, smart_home):
+        self.smart_homes.remove(smart_home)
+        print(f"{smart_home.name} has been removed from the network {self.ip_address}.")
+
+    def list_smart_homes(self):
+        return [smart_home.name for smart_home in self.smart_homes]
+

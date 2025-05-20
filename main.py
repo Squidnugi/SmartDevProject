@@ -55,19 +55,16 @@ def logged_out(network):
         print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
         return None
 
-
 def logged_in(user, network):
     print(Fore.CYAN + "Welcome to the Smart Home System!" + Style.RESET_ALL)
     print("1. Create a new smart home")
-    print("2. List smart homes")
-    print("3. Connect to a smart home")
-    print("4. Disconnect from a smart home")
-    print("5. List devices in smart home")
-    print("6. Create a new device")
-    print("7. List devices in network")
-    print("8. List devices in all smart homes")
-    print("9. Select a device")
-    print("10. Log out")
+    print("2. Select a smart home")
+    print("3. List smart homes")
+    print("4. Create a new device")
+    print("5. List devices in network")
+    print("6. List devices in all smart homes")
+    print("7. Select a device")
+    print("8. Log out")
     choice = input("Enter your choice: ")
     if choice == "1":
         name = input("Enter a name for your smart home: ")
@@ -75,19 +72,22 @@ def logged_in(user, network):
         network.add_smart_home(smart_home)
         print(Fore.GREEN + f"Smart home {name} created successfully!" + Style.RESET_ALL)
         return user
-    elif choice == "5":
+    elif choice == "2":
         if not network.smart_homes:
             print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
             return user
+        print("List of Smart Homes:")
+        for i in network.list_smart_homes():
+            print(i)
         smart_home_name = input("Enter the name of the smart home: ")
         smart_home = next((home for home in network.smart_homes if home.name == smart_home_name), None)
         if smart_home:
-            print(Fore.GREEN + f"Devices in {smart_home_name}:" + Style.RESET_ALL)
-            for device in smart_home.smart_devices:
-                print(device)
+            print(Fore.GREEN + f"Selected smart home: {smart_home}" + Style.RESET_ALL)
+            home_details(smart_home)
+            return user
         else:
             print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
-    elif choice == "6":
+    elif choice == "4":
         if not network.smart_homes:
             print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
             return user
@@ -142,12 +142,64 @@ def logged_in(user, network):
             print(Fore.GREEN + f"Device {name} created successfully!" + Style.RESET_ALL)
         else:
             print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
-    elif choice == "10":
+    elif choice == "7":
+        if not network.smart_homes:
+            print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
+            return user
+        smart_home_name = input("Enter the name of the smart home: ")
+        smart_home = next((home for home in network.smart_homes if home.name == smart_home_name), None)
+        if smart_home:
+            device_name = input("Enter the name of the device: ")
+            device = next((device for device in smart_home.smart_devices if device.name == device_name), None)
+            if device:
+                print(Fore.GREEN + f"Selected device: {device}" + Style.RESET_ALL)
+                device_details(device, smart_home)
+                return user
+            else:
+                print(Fore.RED + "Device not found." + Style.RESET_ALL)
+        else:
+            print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
+    elif choice == "8":
         print(Fore.RED + f"Logging out {user.username}..." + Style.RESET_ALL)
         user.disconnect_from_network()
         return None
     return user
 
+def device_details(device, home=None):
+    print("1. Turn on/off device")
+    print("2. Get device status")
+    print("3. Delete device")
+    choice = input("Enter your choice: ")
+    if choice == "1":
+        device.toggle()
+    elif choice == "2":
+        print(Fore.GREEN + f"{repr(device)}" + Style.RESET_ALL)
+    elif choice == "3":
+        try:
+            home.remove_smart_device(device)
+        except:
+            print(Fore.RED + "Cannot delete device: smart home reference not found." + Style.RESET_ALL)
+    else:
+        print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+
+def home_details(home):
+    print("1. List devices")
+    print("2. Secure home")
+    print("3. Delete home")
+    choice = input("Enter your choice: ")
+    if choice == "1":
+        print(Fore.GREEN + f"Devices in {home.name}:" + Style.RESET_ALL)
+        for device in home.smart_devices:
+            print(device)
+    elif choice == "2":
+        home.secure_home()
+    elif choice == "3":
+        try:
+            network.remove_smart_home(home)
+        except:
+            print(Fore.RED + "Cannot delete smart home: network reference not found." + Style.RESET_ALL)
+    else:
+        print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
 
 if __name__ == "__main__":
     users = []

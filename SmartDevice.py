@@ -28,6 +28,9 @@ class SmartDevice():
         return f"{self.name} ({self.device_type}) - {'ON' if self.is_on else 'OFF'}"
     def __repr__(self):
         return f"SmartDevice(name={self.name}, device_type={self.device_type}, is_on={self.is_on})"
+    def __del__(self):
+        print(Fore.RED + f"SmartDevice {self.name} has been removed from the system" + Style.RESET_ALL)
+        SmartDevice._device_count -= 1
 
     def toggle(self):
         if self.is_on:
