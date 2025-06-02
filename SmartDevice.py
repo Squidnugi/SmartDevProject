@@ -1,5 +1,7 @@
 from colorama import Fore, Style
 import Network
+import time as time_module
+import threading
 
 def is_on_check(func):
     def wrapper(*args, **kwargs):
@@ -13,8 +15,15 @@ def is_on_check(func):
         return result
     return wrapper
 
+class scheduled_operation():
+    def __init__(self, device):
+        self.device = device
+        self.recurring = False
+
+
 class SmartDevice():
     _device_count = 0
+    scheduled_operations = []
     def __init__(self, name, device_type):
         self.name = name
         self.device_type = device_type
@@ -60,7 +69,50 @@ class SmartDevice():
         self.network = network
         print(f"{self.name} is now connected to {network.ip_address}.")
 
+    def disconnect(self):
+        if self.network is None:
+            print(f"{self.name} is not connected to any network.")
+            return
+        self.network = None
+        print(f"{self.name} has disconnected from the network.")
 
+    @is_on_check
+    def delay_operation(self, operation, delay):
+        if not hasattr(self, operation):
+            print(Fore.RED + f"Operation {operation} is not available for {self.name}." + Style.RESET_ALL)
+            return
+        print(f"Scheduling {operation} for {self.name} in {delay} seconds.")
+
+        def delayed_operation():
+            time_module.sleep(delay)
+            try:
+                getattr(self, operation)()
+                print(f"{operation} completed for {self.name}.")
+            except Exception as e:
+                print(Fore.RED + f"Error during {operation} for {self.name}: {e}" + Style.RESET_ALL)
+
+        threading.Thread(target=delayed_operation).start()
+    @is_on_check
+    def scheduale_operation(self, operation, target_time):
+            """
+            Schedule an operation to run at a specific UNIX timestamp (seconds since epoch).
+            """
+            if not hasattr(self, operation):
+                print(Fore.RED + f"Operation {operation} is not available for {self.name}." + Style.RESET_ALL)
+                return
+
+            def scheduled_operation():
+                now = time_module.time()
+                delay = target_time - now
+                if delay > 0:
+                    time_module.sleep(delay)
+                try:
+                    getattr(self, operation)()
+                    print(f"{operation} completed for {self.name} at scheduled time.")
+                except Exception as e:
+                    print(Fore.RED + f"Error during {operation} for {self.name}: {e}" + Style.RESET_ALL)
+
+            threading.Thread(target=scheduled_operation).start()
     @classmethod
     def get_device_count(cls):
         return cls._device_count
@@ -256,3 +308,4 @@ class SmartHub(SmartDevice):
 
     def list_devices(self):
         return [device.name for device in self.smart_devices]
+
