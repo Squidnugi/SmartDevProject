@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from colorama import Fore, Style
 import Network
 import time as time_module
@@ -16,9 +17,24 @@ def is_on_check(func):
     return wrapper
 
 class scheduled_operation():
-    def __init__(self, device):
-        self.device = device
-        self.recurring = False
+    def __init__(self, device_serial_number, recurring=False, operation=None, target_time=None):
+        self.recurring = recurring
+        self.operation = operation
+        self.target_time = target_time
+        self.device_serial_number = device_serial_number
+        self.args = []
+        self.kwargs = {}
+
+    def __str__(self):
+        return f"ScheduledOperation(device={self.device_serial_number}, operation={self.operation}, target_time={self.target_time}, recurring={self.recurring})"
+    def __repr__(self):
+        return f"ScheduledOperation(device={self.device_serial_number}, operation={self.operation}, target_time={self.target_time}, recurring={self.recurring})"
+    def __del__(self):
+        print(Fore.RED + f"Scheduled operation for {self.device_serial_number} has been removed." + Style.RESET_ALL)
+        SmartDevice.scheduled_operations.remove(self)
+
+    def load(self):
+        pass
 
 
 class SmartDevice():
@@ -76,46 +92,92 @@ class SmartDevice():
         self.network = None
         print(f"{self.name} has disconnected from the network.")
 
-    @is_on_check
-    def delay_operation(self, operation, delay):
+
+    def delay_operation(self, operation, delay_seconds, *args, **kwargs):
+        """
+        Execute an operation after a specific delay in seconds.
+        """
         if not hasattr(self, operation):
-            print(Fore.RED + f"Operation {operation} is not available for {self.name}." + Style.RESET_ALL)
+            print(f"Operation {operation} is not available for {self.name}.")
             return
-        print(f"Scheduling {operation} for {self.name} in {delay} seconds.")
 
         def delayed_operation():
-            time_module.sleep(delay)
+            time_module.sleep(delay_seconds)
             try:
-                getattr(self, operation)()
-                print(f"{operation} completed for {self.name}.")
+                getattr(self, operation)(*args, **kwargs)
+                print(f"{operation} completed for {self.name} after {delay_seconds} seconds.")
             except Exception as e:
-                print(Fore.RED + f"Error during {operation} for {self.name}: {e}" + Style.RESET_ALL)
+                print(f"Error during {operation} for {self.name}: {e}")
 
-        threading.Thread(target=delayed_operation).start()
-    @is_on_check
-    def scheduale_operation(self, operation, target_time):
-            """
-            Schedule an operation to run at a specific UNIX timestamp (seconds since epoch).
-            """
-            if not hasattr(self, operation):
-                print(Fore.RED + f"Operation {operation} is not available for {self.name}." + Style.RESET_ALL)
-                return
+        thread = threading.Thread(target=delayed_operation)
+        thread.daemon = True
+        thread.start()
+        return thread
 
-            def scheduled_operation():
-                now = time_module.time()
-                delay = target_time - now
-                if delay > 0:
-                    time_module.sleep(delay)
-                try:
-                    getattr(self, operation)()
-                    print(f"{operation} completed for {self.name} at scheduled time.")
-                except Exception as e:
-                    print(Fore.RED + f"Error during {operation} for {self.name}: {e}" + Style.RESET_ALL)
+    def schedule_operation(self, operation, target_time, *args, **kwargs):
+        """
+        Schedule an operation to run at a specific time.
+        target_time should be a string in format "HH:MM"
+        """
+        if not hasattr(self, operation):
+            print(f"Operation {operation} is not available for {self.name}.")
+            return
 
-            threading.Thread(target=scheduled_operation).start()
+        # Parse the time string
+        try:
+            # If target_time is already an int, treat it as seconds for backward compatibility
+            if isinstance(target_time, int):
+                return self.delay_operation(operation, target_time, *args, **kwargs)
+
+            # Parse the time string (format: "HH:MM")
+            hour, minute = map(int, target_time.split(':'))
+            now = datetime.now()
+            target_datetime = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+            # If the time is already past for today, schedule it for tomorrow
+            if target_datetime < now:
+                target_datetime += timedelta(days=1)
+
+            # Calculate seconds until the target time
+            delay_seconds = (target_datetime - now).total_seconds()
+            print(f"Scheduled {operation} for {self.name} at {target_time} (in {delay_seconds:.1f} seconds)")
+
+            return self.delay_operation(operation, delay_seconds, *args, **kwargs)
+        except Exception as e:
+            print(f"Error scheduling {operation}: {e}")
+            print("Please provide time in HH:MM format (e.g., '14:30')")
+
     @classmethod
     def get_device_count(cls):
         return cls._device_count
+    @classmethod
+    def get_scheduled_operations(cls):
+        return cls.scheduled_operations
+    @classmethod
+    def add_scheduled_operation(cls, operation):
+        if not isinstance(operation, scheduled_operation):
+            raise TypeError("Only scheduled_operation instances can be added.")
+        cls.scheduled_operations.append(operation)
+        print(f"Scheduled operation {operation} has been added for {operation.device_serial_number}.")
+
+class BatteryPoweredDevice(SmartDevice):
+    def __init__(self, name, battery_level=100):
+        super().__init__(name, "Battery Powered Device")
+        self.battery_level = battery_level
+        self.set_energy_consumption(50)  # Default energy consumption for battery-powered devices
+
+    def __str__(self):
+        return f"{self.name} (Battery Powered) - {'ON' if self.is_on else 'OFF'}, Battery Level: {self.battery_level}%"
+    def __repr__(self):
+        return f"BatteryPoweredDevice(name={self.name}, is_on={self.is_on}, battery_level={self.battery_level})"
+
+    @is_on_check
+    def set_battery_level(self, level):
+        if 0 <= level <= 100:
+            self.battery_level = level
+            print(f"{self.name} battery level set to {self.battery_level}%.")
+        else:
+            print("Battery level must be between 0 and 100.")
 
 
 class SmartLight(SmartDevice):
@@ -123,6 +185,8 @@ class SmartLight(SmartDevice):
         super().__init__(name, "Light")
         self.brightness = brightness
         self.colour = "White"
+        self.set_energy_consumption(100)
+
     def __str__(self):
         return f"{self.name} (Light) - {'ON' if self.is_on else 'OFF'}, Brightness: {self.brightness}, Colour: {self.colour}"
     def __repr__(self):
@@ -143,6 +207,7 @@ class SmartThermostat(SmartDevice):
     def __init__(self, name, temperature=22):
         super().__init__(name, "Thermostat")
         self.temperature = temperature
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Thermostat) - {'ON' if self.is_on else 'OFF'}, Temperature: {self.temperature}"
     def __repr__(self):
@@ -167,6 +232,7 @@ class SmartCamera(SmartDevice):
     def __init__(self, name, resolution="1080p"):
         super().__init__(name, "Security Camera")
         self.resolution = resolution
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Security Camera) - {'ON' if self.is_on else 'OFF'}, Resolution: {self.resolution}"
     def __repr__(self):
@@ -195,6 +261,7 @@ class SmartAppliance(SmartDevice):
     def __init__(self, name, appliance_type):
         super().__init__(name, appliance_type)
         self.appliance_type = appliance_type
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} ({self.appliance_type}) - {'ON' if self.is_on else 'OFF'}"
     def __repr__(self):
@@ -209,6 +276,7 @@ class SmartSpeaker(SmartDevice):
     def __init__(self, name, volume=50):
         super().__init__(name, "Speaker")
         self.volume = volume
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Speaker) - {'ON' if self.is_on else 'OFF'}, Volume: {self.volume}"
     def __repr__(self):
@@ -242,6 +310,7 @@ class SmartLock(SmartDevice):
     def __init__(self, name):
         super().__init__(name, "Lock")
         self.locked = True
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Lock) - {'LOCKED' if self.locked else 'UNLOCKED'}"
     def __repr__(self):
@@ -259,6 +328,7 @@ class SmartDoorbell(SmartDevice):
     def __init__(self, name):
         super().__init__(name, "Doorbell")
         self.ringing = False
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Doorbell) - {'RINGING' if self.ringing else 'NOT RINGING'}"
     def __repr__(self):
@@ -276,6 +346,7 @@ class SmartDoor(SmartDevice):
     def __init__(self, name):
         super().__init__(name, "Door")
         self.open = False
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Door) - {'OPEN' if self.open else 'CLOSED'}"
     def __repr__(self):
@@ -293,6 +364,7 @@ class SmartHub(SmartDevice):
     def __init__(self, name):
         super().__init__(name, "Hub")
         self.smart_devices = []
+        self.set_energy_consumption(100)
     def __str__(self):
         return f"{self.name} (Hub) - {'ON' if self.is_on else 'OFF'}"
     def __repr__(self):

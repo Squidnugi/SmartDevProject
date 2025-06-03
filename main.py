@@ -246,43 +246,146 @@ class GUI():
                     print(Fore.RED + str(e) + Style.RESET_ALL)
             else:
                 print(Fore.RED + "Network not found." + Style.RESET_ALL)
+        else:
+            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
         return False
 
     def device_details(self, device, home):
-        print("1. Turn on/off device")
-        print("2. Get device status")
-        print("3. Delete device")
-        choice = input("Enter your choice: ")
-        if choice == "1":
-            device.toggle()
-        elif choice == "2":
-            print(Fore.GREEN + f"{repr(device)}" + Style.RESET_ALL)
-        elif choice == "3":
-            try:
-                home.remove_smart_device(device)
-            except:
-                print(Fore.RED + "Cannot delete device: smart home reference not found." + Style.RESET_ALL)
-        else:
-            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+        while True:
+            print("1. Turn on/off device")
+            print("2. Get device status")
+            print("3. Schedule operation")
+            print("4. All operations")
+            print("5. All Scheduled Operations")
+            print("6. Delete device")
+            print("7. Exit")
+
+            choice = input("Enter your choice: ")
+            if choice == "1":
+                device.toggle()
+            elif choice == "2":
+                print(Fore.GREEN + f"{repr(device)}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"Status: {'On' if device.is_on else 'Off'}" + Style.RESET_ALL)
+                print(Fore.GREEN + f"Device Type: {device.device_type}" + Style.RESET_ALL)
+            elif choice == "3":
+                print("Enter the time to schedule the operation (in seconds or HH:MM)")
+                print("(if in seconds, it will not be saved after the program is closed)")
+                operation_time = input(">> ")
+                try:
+                    operation_time = int(operation_time)
+                    if isinstance(operation_time, str):
+                        SmartDevice.SmartDevice.add_scheduled_operation(SmartDevice.scheduled_operation(device.serial_number, operation_time))
+    #                    'time': time.time() + operation_time,
+    #                    'function': device.toggle,
+    #                    'args': [],
+    #                    'kwargs': {}
+    #                })
+                    elif operation_time < 0:
+                        print(Fore.RED + "Time cannot be negative." + Style.RESET_ALL)
+                    else:
+                        device.delay_operation("toggle", operation_time)
+                    print(Fore.GREEN + f"Operation scheduled in {operation_time} seconds." + Style.RESET_ALL)
+                    print(SmartDevice.SmartDevice.get_scheduled_operations())
+                except ValueError as e:
+                    print(Fore.RED + f"Invalid time input: {e}" + Style.RESET_ALL)
+            elif choice == "4":
+                print("Available Operations:")
+                print("1. Turn on")
+                print("2. Turn off")
+                print("3. Set brightness (for lights)")
+                print("4. Set temperature (for thermostats)")
+                print("5. Record video (for cameras)")
+                print("6. Lock (for locks)")
+                print("7. Play sound (for speakers)")
+                print("8. Ring doorbell (for doorbells)")
+                print("9. Open/Close door (for doors)")
+                operation_choice = input("Enter the number of the operation: ")
+                if operation_choice == "1":
+                    device.turn_on()
+                elif operation_choice == "2":
+                    device.turn_off()
+                elif operation_choice == "3" and isinstance(device, SmartDevice.SmartLight):
+                    brightness = int(input("Enter brightness level (0-100): "))
+                    device.set_brightness(brightness)
+                elif operation_choice == "4" and isinstance(device, SmartDevice.SmartThermostat):
+                    temperature = float(input("Enter temperature: "))
+                    device.set_temperature(temperature)
+                elif operation_choice == "5" and isinstance(device, SmartDevice.SmartCamera):
+                    device.record_video()
+                elif operation_choice == "6" and isinstance(device, SmartDevice.SmartLock):
+                    device.lock()
+                elif operation_choice == "7" and isinstance(device, SmartDevice.SmartSpeaker):
+                    sound = input("Enter sound to play: ")
+                    device.play_sound(sound)
+                elif operation_choice == "8" and isinstance(device, SmartDevice.SmartDoorbell):
+                    device.ring_doorbell()
+                elif operation_choice == "9" and isinstance(device, SmartDevice.SmartDoor):
+                    action = input("Enter 'open' or 'close': ").strip().lower()
+                    if action == "open":
+                        device.open_door()
+                    elif action == "close":
+                        device.close_door()
+                    else:
+                        print(Fore.RED + "Invalid action." + Style.RESET_ALL)
+                else:
+                    print(Fore.RED + "Invalid operation choice." + Style.RESET_ALL)
+            elif choice == "5":
+                print(Fore.GREEN + "Scheduled Operations:" + Style.RESET_ALL)
+                for operation in SmartDevice.SmartDevice.get_scheduled_operations():
+                    print(f"Time: {operation['time']}, Function: {operation['function'].__name__}, Args: {operation['args']}, Kwargs: {operation['kwargs']}")
+            elif choice == "6":
+                print(Fore.YELLOW + "Are you sure you want to delete this device? (yes/no)" + Style.RESET_ALL)
+                confirm = input(">> ").strip().lower()
+                if confirm == "yes":
+                    try:
+                        home.remove_smart_device(device)
+                        print(Fore.GREEN + f"Device {device.name} deleted successfully!" + Style.RESET_ALL)
+                    except ValueError as e:
+                        print(Fore.RED + str(e) + Style.RESET_ALL)
+                    break
+                else:
+                    print(Fore.YELLOW + "Device deletion cancelled." + Style.RESET_ALL)
+            elif choice == "7":
+                print(Fore.RED + "Exiting device details." + Style.RESET_ALL)
+                break
+            else:
+                print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
 
     def home_details(self, home):
-        print("1. List devices")
-        print("2. Secure home")
-        print("3. Delete home")
-        choice = input("Enter your choice: ")
-        if choice == "1":
-            print(Fore.GREEN + f"Devices in {home.name}:" + Style.RESET_ALL)
-            for device in home.smart_devices:
-                print(device)
-        elif choice == "2":
-            home.secure_home()
-        elif choice == "3":
-            try:
-                self.connected_network.remove_smart_home(home)
-            except:
-                print(Fore.RED + "Cannot delete smart home: network reference not found." + Style.RESET_ALL)
-        else:
-            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+        while True:
+            print("1. List devices")
+            print("2. Secure home")
+            print("3. Home Energy Consumption")
+            print("4. Delete home")
+            print("5. Exit")
+            choice = input("Enter your choice: ")
+            if choice == "1":
+                print(Fore.GREEN + f"Devices in {home.name}:" + Style.RESET_ALL)
+                for device in home.smart_devices:
+                    print(device)
+            elif choice == "2":
+                home.secure_home()
+                print(Fore.GREEN + f"Security check completed for {home.name}." + Style.RESET_ALL)
+            elif choice == "3":
+                energy_consumption = home.get_energy_consumption()
+                print(Fore.GREEN + f"Total energy consumption for {home.name}: {energy_consumption} kWh" + Style.RESET_ALL)
+            elif choice == "4":
+                print(Fore.YELLOW + "Are you sure you want to delete this home? (yes/no)" + Style.RESET_ALL)
+                confirm = input(">> ").strip().lower()
+                if confirm == "yes":
+                    try:
+                        self.connected_network.remove_smart_home(home)
+                        print(Fore.GREEN + f"Smart home {home.name} deleted successfully!" + Style.RESET_ALL)
+                    except ValueError as e:
+                        print(Fore.RED + str(e) + Style.RESET_ALL)
+                    break
+                else:
+                    print(Fore.YELLOW + "Home deletion cancelled." + Style.RESET_ALL)
+            elif choice == "5":
+                print(Fore.RED + "Exiting home details." + Style.RESET_ALL)
+                break
+            else:
+                print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
 
     def network_details(self):
         print("1. List smart homes")

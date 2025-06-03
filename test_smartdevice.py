@@ -40,6 +40,6 @@ def test_device_count():
 
 def test_schedule_operation(smart_light):
     smart_light.turn_on()
-    smart_light.scheduale_operation("turn_off", 10)
+    smart_light.schedule_operation("turn_off", 60)
     assert not smart_light.is_on  # Assuming the operation completes immediately in the test environment
 

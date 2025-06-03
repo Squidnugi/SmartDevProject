@@ -2,11 +2,14 @@ import Network
 
 #each home is connected to a IP address and when a user connects to that IP address, they can access the smart devices in that home
 class User:
+    _Users = 0
     def __init__(self, username):
         if username.lower() in ["example", "test", "admin"]:
             raise ValueError("Username exists in the system. Please choose a different username.")
         self.username = username
         self.network = None
+        self.user_id = User._Users
+        User._Users += 1
 
     def __str__(self):
         return f"User: {self.username}"
@@ -83,3 +86,17 @@ class SmartHome:
             print(f"{self.name} is secure.")
         else:
             print(f"{self.name} is not secure. Points: {points}")
+
+    def turn_on_all_devices(self):
+        for device in self.smart_devices:
+            device.turn_on()
+        print(f"All devices in {self.name} have been turned on.")
+    def turn_off_all_devices(self):
+        for device in self.smart_devices:
+            device.turn_off()
+        print(f"All devices in {self.name} have been turned off.")
+
+    def get_engergy_consumption(self):
+        total_consumption = sum(device.energy_consumption for device in self.smart_devices if device.is_on)
+        print(f"Total energy consumption in {self.name}: {total_consumption} kWh")
+        return total_consumption

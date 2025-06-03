@@ -1,26 +1,20 @@
 import time as time_module
 import threading
+import SmartDevice
+
 
 def test():
-    delay = 5  # seconds
-    def delayed_operation():
-        time_module.sleep(delay)
-        try:
-            print("\nSmart light turned on after delay.")
-        except Exception as e:
-            print(f"Error during delayed operation: {e}")
+    smart_device = SmartDevice.SmartLight("TestLight", brightness=75)
+    smart_device.delay_operation("turn_on", 2)  # Turn on after 2 seconds
+    smart_device.schedule_operation("turn_off", "11:22")  # Turn off at 12:43
+    smart_device.delay_operation("set_brightness", 1, 30)  # Set brightness to 30 after 1 second
 
 
-    threading.Thread(target=delayed_operation).start()
-    print("before thread?")
-    val = input("Press Enter to continue...")
-    print(val)
+    while True:
+        thing = input(">>")
+        if thing == "exit":
+            break
 
-def test2():
-    print("This is a test function that runs after the main thread completes.")
-    # You can add more functionality here as needed.
-    # For example, you could check the status of devices or perform cleanup tasks.
-    return None
-    print("This is a test function that runs before the main thread starts.")
+
 if __name__ == "__main__":
-    test2()
+    test()
