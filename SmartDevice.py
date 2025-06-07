@@ -4,6 +4,7 @@ import Network
 import time as time_module
 import threading
 
+
 def is_on_check(func):
     def wrapper(*args, **kwargs):
         instance = args[0]
@@ -14,32 +15,50 @@ def is_on_check(func):
             return None
         result = func(*args, **kwargs)
         return result
+
     return wrapper
 
+
 class scheduled_operation():
-    def __init__(self, device_serial_number, recurring=False, operation=None, target_time=None):
+    def __init__(self, device_serial_number, operation, target_time, recurring, *args, **kwargs):
         self.recurring = recurring
         self.operation = operation
         self.target_time = target_time
         self.device_serial_number = device_serial_number
-        self.args = []
-        self.kwargs = {}
+        self.args = args
+        self.kwargs = kwargs
+        SmartDevice.add_scheduled_operation(self)
 
     def __str__(self):
         return f"ScheduledOperation(device={self.device_serial_number}, operation={self.operation}, target_time={self.target_time}, recurring={self.recurring})"
+
     def __repr__(self):
         return f"ScheduledOperation(device={self.device_serial_number}, operation={self.operation}, target_time={self.target_time}, recurring={self.recurring})"
+
     def __del__(self):
         print(Fore.RED + f"Scheduled operation for {self.device_serial_number} has been removed." + Style.RESET_ALL)
-        SmartDevice.scheduled_operations.remove(self)
+        try:
+            SmartDevice.scheduled_operations.remove(self)
+        except ValueError:
+            print(Fore.YELLOW + f"Scheduled operation for {self.device_serial_number} was not found in the list." + Style.RESET_ALL)
 
-    def load(self):
-        pass
+    def load(self, device):
+        try:
+            if not isinstance(device, SmartDevice):
+                raise TypeError("Can only load scheduled operation for a SmartDevice instance.")
+            else:
+                print(f"Loading scheduled operation {self.operation} for {device.name} with serial number {device.serial_number}.")
+            device.schedule_operation(self.operation, self.target_time, self.recurring, self, *self.args, **self.kwargs)
+            #print(f"✓ Loaded scheduled operation {self.operation} for {device.name} at {self.target_time}.")
+        except Exception as e:
+            print(Fore.RED + f"Error loading scheduled operation: {e}" + Style.RESET_ALL)
+
 
 
 class SmartDevice():
     _device_count = 0
     scheduled_operations = []
+
     def __init__(self, name, device_type):
         self.name = name
         self.device_type = device_type
@@ -51,8 +70,10 @@ class SmartDevice():
 
     def __str__(self):
         return f"{self.name} ({self.device_type}) - {'ON' if self.is_on else 'OFF'}"
+
     def __repr__(self):
         return f"SmartDevice(name={self.name}, device_type={self.device_type}, is_on={self.is_on})"
+
     def __del__(self):
         print(Fore.RED + f"SmartDevice {self.name} has been removed from the system" + Style.RESET_ALL)
         SmartDevice._device_count -= 1
@@ -83,17 +104,17 @@ class SmartDevice():
         if not isinstance(network, Network.Network):
             raise TypeError("Can only connect to a Network instance.")
         self.network = network
-        print(f"{self.name} is now connected to {network.ip_address}.")
+        print(f"✓ {self.name} has successfully connected to network at {network.ip_address}.")
 
     def disconnect(self):
         if self.network is None:
-            print(f"{self.name} is not connected to any network.")
+            print(f"! {self.name} is not currently connected to any network.")
             return
+        old_network = self.network.ip_address
         self.network = None
-        print(f"{self.name} has disconnected from the network.")
+        print(f"✓ {self.name} has disconnected from network at {old_network}.")
 
-
-    def delay_operation(self, operation, delay_seconds, *args, **kwargs):
+    def delay_operation(self, operation, delay_seconds, recurring, sch_class, *args, **kwargs):
         """
         Execute an operation after a specific delay in seconds.
         """
@@ -108,13 +129,17 @@ class SmartDevice():
                 print(f"{operation} completed for {self.name} after {delay_seconds} seconds.")
             except Exception as e:
                 print(f"Error during {operation} for {self.name}: {e}")
-
+            if not recurring:
+                print(SmartDevice.scheduled_operations)
+                print(f"Removing scheduled operation {operation} for {self.name}.")
+                # If not recurring, remove the operation from scheduled operations
+                SmartDevice.remove_scheduled_operation(sch_class)
         thread = threading.Thread(target=delayed_operation)
         thread.daemon = True
         thread.start()
         return thread
 
-    def schedule_operation(self, operation, target_time, *args, **kwargs):
+    def schedule_operation(self, operation, target_time, recurring, sch_class, *args, **kwargs):
         """
         Schedule an operation to run at a specific time.
         target_time should be a string in format "HH:MM"
@@ -127,7 +152,7 @@ class SmartDevice():
         try:
             # If target_time is already an int, treat it as seconds for backward compatibility
             if isinstance(target_time, int):
-                return self.delay_operation(operation, target_time, *args, **kwargs)
+                return self.delay_operation(operation, target_time, recurring, sch_class, *args, **kwargs)
 
             # Parse the time string (format: "HH:MM")
             hour, minute = map(int, target_time.split(':'))
@@ -142,7 +167,7 @@ class SmartDevice():
             delay_seconds = (target_datetime - now).total_seconds()
             print(f"Scheduled {operation} for {self.name} at {target_time} (in {delay_seconds:.1f} seconds)")
 
-            return self.delay_operation(operation, delay_seconds, *args, **kwargs)
+            return self.delay_operation(operation, delay_seconds, recurring, sch_class, *args, **kwargs)
         except Exception as e:
             print(f"Error scheduling {operation}: {e}")
             print("Please provide time in HH:MM format (e.g., '14:30')")
@@ -150,15 +175,38 @@ class SmartDevice():
     @classmethod
     def get_device_count(cls):
         return cls._device_count
+
     @classmethod
     def get_scheduled_operations(cls):
         return cls.scheduled_operations
+
     @classmethod
     def add_scheduled_operation(cls, operation):
         if not isinstance(operation, scheduled_operation):
             raise TypeError("Only scheduled_operation instances can be added.")
         cls.scheduled_operations.append(operation)
         print(f"Scheduled operation {operation} has been added for {operation.device_serial_number}.")
+
+    @classmethod
+    def remove_scheduled_operation(cls, operation):
+        if not isinstance(operation, scheduled_operation):
+            raise TypeError("Only scheduled_operation instances can be removed.")
+        try:
+            cls.scheduled_operations.remove(operation)
+            print(f"Scheduled operation {operation} has been removed.")
+        except ValueError:
+            print(f"Scheduled operation {operation} was not found in the list.")
+
+    @classmethod
+    def load_all_scheduled_operations(cls, device):
+        if not isinstance(device, SmartDevice):
+            raise TypeError("Can only load scheduled operations for a SmartDevice instance.")
+        print(f"Loading all scheduled operations for {device.name} with serial number {device.serial_number}.")
+        for operation in cls.scheduled_operations:
+            if operation.device_serial_number == device.serial_number:
+                operation.load(device)
+                print(f"✓ Loaded scheduled operation {operation.operation} for {device.name} at {operation.target_time}.")
+
 
 class BatteryPoweredDevice(SmartDevice):
     def __init__(self, name, battery_level=100):
@@ -168,6 +216,7 @@ class BatteryPoweredDevice(SmartDevice):
 
     def __str__(self):
         return f"{self.name} (Battery Powered) - {'ON' if self.is_on else 'OFF'}, Battery Level: {self.battery_level}%"
+
     def __repr__(self):
         return f"BatteryPoweredDevice(name={self.name}, is_on={self.is_on}, battery_level={self.battery_level})"
 
@@ -233,6 +282,7 @@ class SmartCamera(SmartDevice):
         super().__init__(name, "Security Camera")
         self.resolution = resolution
         self.set_energy_consumption(100)
+        self.recording = False
     def __str__(self):
         return f"{self.name} (Security Camera) - {'ON' if self.is_on else 'OFF'}, Resolution: {self.resolution}"
     def __repr__(self):
@@ -246,6 +296,7 @@ class SmartCamera(SmartDevice):
     @is_on_check
     def record(self):
         if self.is_on:
+            self.recording = True
             print(f"{self.name} is recording.")
         else:
             print(f"{self.name} is OFF. Cannot record.")
@@ -253,9 +304,14 @@ class SmartCamera(SmartDevice):
     @is_on_check
     def stop_recording(self):
         if self.is_on:
+            self.recording = False
             print(f"{self.name} has stopped recording.")
         else:
             print(f"{self.name} is OFF. Cannot stop recording.")
+
+    def turn_off(self):
+        super().turn_off()
+        self.recording = False
 
 class SmartAppliance(SmartDevice):
     def __init__(self, name, appliance_type):
@@ -282,24 +338,29 @@ class SmartSpeaker(SmartDevice):
     def __repr__(self):
         return f"SmartSpeaker(name={self.name}, is_on={self.is_on}, volume={self.volume})"
 
+    @is_on_check
     def set_volume(self, volume):
         self.volume = volume
         print(f"{self.name} volume set to {self.volume}.")
 
+    @is_on_check
     def increase_volume(self, amount):
         self.volume += amount
         print(f"{self.name} volume increased to {self.volume}.")
 
+    @is_on_check
     def decrease_volume(self, amount):
         self.volume -= amount
         print(f"{self.name} volume decreased to {self.volume}.")
 
+    @is_on_check
     def play_music(self, song):
         if self.is_on:
             print(f"{self.name} is playing {song}.")
         else:
             print(f"{self.name} is OFF. Cannot play music.")
 
+    @is_on_check
     def stop_music(self):
         if self.is_on:
             print(f"{self.name} has stopped playing music.")
@@ -316,10 +377,12 @@ class SmartLock(SmartDevice):
     def __repr__(self):
         return f"SmartLock(name={self.name}, is_on={self.is_on}, locked={self.locked})"
 
+    @is_on_check
     def lock(self):
         self.locked = True
         print(f"{self.name} is now LOCKED.")
 
+    @is_on_check
     def unlock(self):
         self.locked = False
         print(f"{self.name} is now UNLOCKED.")
@@ -334,10 +397,12 @@ class SmartDoorbell(SmartDevice):
     def __repr__(self):
         return f"SmartDoorbell(name={self.name}, is_on={self.is_on}, ringing={self.ringing})"
 
+    @is_on_check
     def ring(self):
         self.ringing = True
         print(f"{self.name} is now RINGING.")
 
+    @is_on_check
     def stop_ringing(self):
         self.ringing = False
         print(f"{self.name} has stopped RINGING.")
@@ -352,32 +417,15 @@ class SmartDoor(SmartDevice):
     def __repr__(self):
         return f"SmartDoor(name={self.name}, is_on={self.is_on}, open={self.open})"
 
+    @is_on_check
     def open_door(self):
         self.open = True
         print(f"{self.name} is now OPEN.")
 
+    @is_on_check
     def close_door(self):
         self.open = False
         print(f"{self.name} is now CLOSED.")
 
-class SmartHub(SmartDevice):
-    def __init__(self, name):
-        super().__init__(name, "Hub")
-        self.smart_devices = []
-        self.set_energy_consumption(100)
-    def __str__(self):
-        return f"{self.name} (Hub) - {'ON' if self.is_on else 'OFF'}"
-    def __repr__(self):
-        return f"SmartHub(name={self.name}, is_on={self.is_on}, smart_devices={self.smart_devices})"
 
-    def add_device(self, device):
-        self.smart_devices.append(device)
-        print(f"{device.name} has been added to {self.name}.")
-
-    def remove_device(self, device):
-        self.smart_devices.remove(device)
-        print(f"{device.name} has been removed from {self.name}.")
-
-    def list_devices(self):
-        return [device.name for device in self.smart_devices]
 

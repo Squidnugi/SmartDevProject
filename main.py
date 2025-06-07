@@ -1,9 +1,9 @@
 from colorama import Fore, Style
 import SmartDevice
 import time
-from abc import ABC, abstractmethod
 import Network
 import User
+import pickle
 
 """Each device will be attached to 1 network
 devices can be under a hub
@@ -16,15 +16,13 @@ users connected to a network can see all the smarthomes in that network"""
 #figure out a way to manage time with a text based gui
 
 
-
-
 class GUI():
     def __init__(self):
         self.users = []
         self.networks = []
         self.logged_in_user = None
         self.connected_network = None
-        self.schedualed_operations = []
+        self.scheduled_operations = []
 
     def add_user(self, user):
         self.users.append(user)
@@ -38,108 +36,159 @@ class GUI():
     def set_connected_network(self, network):
         self.connected_network = network
 
+    def display_header(self, title):
+        """Display a consistent header for all menus"""
+        print("\n" + "═" * 50)
+        print(f"{Fore.CYAN}■ {title}{Style.RESET_ALL}")
+        print("═" * 50)
+
+    def display_menu_options(self, options):
+        """Display menu options in a consistent format"""
+        for idx, option in options.items():
+            print(f"  {Fore.YELLOW}[{idx}]{Style.RESET_ALL} {option}")
+        print("─" * 50)
+
+    def display_success(self, message):
+        """Display success messages in a consistent format"""
+        print(f"{Fore.GREEN}✓ {message}{Style.RESET_ALL}")
+
+    def display_error(self, message):
+        """Display error messages in a consistent format"""
+        print(f"{Fore.RED}✗ {message}{Style.RESET_ALL}")
+
+    def display_warning(self, message):
+        """Display warning messages in a consistent format"""
+        print(f"{Fore.YELLOW}⚠ {message}{Style.RESET_ALL}")
+
+    def display_info(self, message):
+        """Display info messages in a consistent format"""
+        print(f"{Fore.BLUE}ℹ {message}{Style.RESET_ALL}")
+
+    def prompt(self, message):
+        """Prompt user for input with consistent formatting"""
+        return input(f"{Fore.CYAN}► {message}: {Style.RESET_ALL}")
+
     def logged_out(self):
-        print(Fore.CYAN + "Welcome to the Smart Home System!" + Style.RESET_ALL)
-        print("1. Create a new user")
-        print("2. log in")
-        print("3. Exit")
-        choice = input("Enter your choice: ")
+        self.display_header("SMART HOME SYSTEM LOGIN")
+
+        options = {
+            "1": "Create a new user",
+            "2": "Log in",
+            "3": "Exit"
+        }
+        self.display_menu_options(options)
+
+        choice = self.prompt("Enter your choice")
 
         if choice == "1":
-            username = input("Enter a username: ")
+            username = self.prompt("Enter a username")
             user = next((user for user in self.users if user.username == username), None)
             if user:
-                print(Fore.RED + f"Username {username} already exists" + Style.RESET_ALL)
+                self.display_error(f"Username '{username}' already exists")
                 return False
             try:
                 self.logged_in_user = User.User(username)
-                self.logged_in_user.connect_to_network(self.connected_network)
+                if self.connected_network is not None:
+                    self.logged_in_user.connect_to_network(self.connected_network)
                 self.users.append(self.logged_in_user)
-                print(Fore.GREEN + f"User {username} created successfully!" + Style.RESET_ALL)
+                self.display_success(f"User '{username}' created successfully!")
                 return False
             except ValueError as e:
-                print(Fore.RED + str(e) + Style.RESET_ALL)
+                self.display_error(str(e))
                 return False
         elif choice == "2":
-            username = input("Enter your username: ")
+            username = self.prompt("Enter your username")
             user = next((user for user in self.users if user.username == username), None)
             if user:
-                print(Fore.GREEN + f"Welcome back, {username}!" + Style.RESET_ALL)
+                self.logged_in_user = user
+                if self.connected_network is not None:
+                    try:
+                        self.logged_in_user.connect_to_network(self.connected_network)
+                    except ValueError as e:
+                        self.display_error(str(e))
+                        return False
+                self.display_success(f"Welcome back, {username}!")
                 return False
             else:
-                print(Fore.RED + "User not found. Please create a new user." + Style.RESET_ALL)
+                self.display_error("User not found. Please create a new user.")
                 return False
         elif choice == "3":
-            print(Fore.RED + "Exiting the system." + Style.RESET_ALL)
+            self.display_info("Exiting the system.")
             return True
         else:
-            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+            self.display_warning("Invalid choice. Please try again.")
             return False
 
     def logged_in(self):
         time.sleep(1)
-        print(Fore.CYAN + "Welcome to the Smart Home System!" + Style.RESET_ALL)
+        self.display_header("SMART HOME CONTROL PANEL")
+
         if self.connected_network is not None:
-            print(Fore.GREEN + f"Connected to network: {self.connected_network.ip_address}" + Style.RESET_ALL)
-            print("1. Create a new smart home")
-            print("2. Select a smart home")
-            print("3. List smart homes")
-            print("4. Create a new device")
-            print("5. List devices in network")
-            print("6. Select a device")
-            print("7. Select Network")
+            self.display_info(f"Connected to network: {self.connected_network.ip_address}")
+            options = {
+                "1": "Create a new smart home",
+                "2": "Select a smart home",
+                "3": "List smart homes",
+                "4": "Create a new device",
+                "5": "List devices in network",
+                "6": "Select a device",
+                "7": "Select Network",
+                "0": "Log out"
+            }
         else:
-            print("1. Connect to Network")
-        print("0. Log out")
-        choice = input("Enter your choice: ")
-        #Create a new smart home
+            options = {
+                "1": "Connect to Network",
+                "0": "Log out"
+            }
+        self.display_menu_options(options)
+
+        choice = self.prompt("Enter your choice")
+
+        # Create a new smart home
         if choice == "1" and self.connected_network is not None:
-            name = input("Enter a name for your smart home: ")
+            name = self.prompt("Enter a name for your smart home")
             smart_home = User.SmartHome(self.logged_in_user.network, name)
-            self.connected_network.add_smart_home(smart_home)
-            print(Fore.GREEN + f"Smart home {name} created successfully!" + Style.RESET_ALL)
-            return False
-        #Select a smart home
+            self.display_success(f"Smart home '{name}' created successfully!")
+
+        # Select a smart home
         elif choice == "2" and self.connected_network is not None:
             if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
+                self.display_error("No smart homes found. Please create a smart home first.")
                 return False
-            print("List of Smart Homes:")
-            for i in self.connected_network.list_smart_homes():
-                print(i)
-            smart_home_name = input("Enter the name of the smart home: ")
-            smart_home = next((home for home in self.connected_network.smart_homes if home.name == smart_home_name), None)
-            if smart_home:
-                print(Fore.GREEN + f"Selected smart home: {smart_home}" + Style.RESET_ALL)
-                self.home_details(smart_home)
-                return False
-            else:
-                print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
-        #List smart homes
+
+            self.display_info("Available Smart Homes:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
+            smart_home_idx = self.prompt("Enter the number of the smart home")
+            try:
+                idx = int(smart_home_idx) - 1
+                if 0 <= idx < len(self.connected_network.smart_homes):
+                    smart_home = self.connected_network.smart_homes[idx]
+                    self.display_success(f"Selected smart home: {smart_home.name}")
+                    self.home_details(smart_home)
+                else:
+                    self.display_error("Invalid smart home number.")
+            except ValueError:
+                self.display_error("Please enter a valid number.")
+
+        # List smart homes
         elif choice == "3" and self.connected_network is not None:
             if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found." + Style.RESET_ALL)
+                self.display_error("No smart homes found.")
                 return False
-            print("List of Smart Homes:")
-            for i in self.connected_network.list_smart_homes():
-                print(i)
-        #Create a new device
+            self.display_info("Smart Homes in Network:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
+        # Create a new device
         elif choice == "4" and self.connected_network is not None:
             if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
+                self.display_error("No smart homes found. Please create a smart home first.")
                 return False
-            name = input("Enter a name for your device: ")
-            print("List of Device Types:")
-            print("1. Light")
-            print("2. Thermostat")
-            print("3. Camera")
-            print("4. Lock")
-            print("5. Speaker")
-            print("6. Doorbell")
-            print("7. Door")
-            print("8. Appliance")
-            print("9. None")
-            device_type_choice = input("Enter the number of the device type: ")
+
+            name = self.prompt("Enter a name for your device")
+
             device_types = {
                 "1": "Light",
                 "2": "Thermostat",
@@ -149,272 +198,788 @@ class GUI():
                 "6": "Doorbell",
                 "7": "Door",
                 "8": "Appliance",
-                "9": "None"
+                "9": "Custom"
             }
+
+            self.display_info("Available Device Types:")
+            self.display_menu_options(device_types)
+
+            device_type_choice = self.prompt("Select device type")
             device_type = device_types.get(device_type_choice)
-            if device_type == "None":
-                device_type = input("Enter the type of device: ")
-            smart_home_name = input("Enter the name of the smart home to add the device to: ")
-            smart_home = next((home for home in self.connected_network.smart_homes if home.name == smart_home_name), None)
-            if smart_home:
-                if device_type == "Light":
-                    device = SmartDevice.SmartLight(name)
-                elif device_type == "Thermostat":
-                    device = SmartDevice.SmartThermostat(name)
-                elif device_type == "Camera":
-                    device = SmartDevice.SmartCamera(name)
-                elif device_type == "Lock":
-                    device = SmartDevice.SmartLock(name)
-                elif device_type == "Speaker":
-                    device = SmartDevice.SmartSpeaker(name)
-                elif device_type == "Doorbell":
-                    device = SmartDevice.SmartDoorbell(name)
-                elif device_type == "Door":
-                    device = SmartDevice.SmartDoor(name)
-                elif device_type == "Appliance":
-                    device = SmartDevice.SmartAppliance(name)
+
+            if device_type == "Custom":
+                device_type = self.prompt("Enter the type of device")
+
+            self.display_info("Available Smart Homes:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
+            smart_home_idx = self.prompt("Enter the number of the smart home")
+            try:
+                idx = int(smart_home_idx) - 1
+                if 0 <= idx < len(self.connected_network.smart_homes):
+                    smart_home = self.connected_network.smart_homes[idx]
+
+                    if device_type == "Light":
+                        device = SmartDevice.SmartLight(name)
+                    elif device_type == "Thermostat":
+                        device = SmartDevice.SmartThermostat(name)
+                    elif device_type == "Camera":
+                        device = SmartDevice.SmartCamera(name)
+                    elif device_type == "Lock":
+                        device = SmartDevice.SmartLock(name)
+                    elif device_type == "Speaker":
+                        device = SmartDevice.SmartSpeaker(name)
+                    elif device_type == "Doorbell":
+                        device = SmartDevice.SmartDoorbell(name)
+                    elif device_type == "Door":
+                        device = SmartDevice.SmartDoor(name)
+                    elif device_type == "Appliance":
+                        device = SmartDevice.SmartAppliance(name, "Generic Appliance")
+                    else:
+                        device = SmartDevice.SmartDevice(name, device_type)
+
+                    smart_home.add_smart_device(device)
+                    self.display_success(f"Device '{name}' added to '{smart_home.name}' successfully!")
                 else:
-                    device = SmartDevice.SmartDevice(name, device_type)
-                smart_home.add_smart_device(device)
-                print(Fore.GREEN + f"Device {name} created successfully!" + Style.RESET_ALL)
-            else:
-                print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
-        #List devices in network
+                    self.display_error("Invalid smart home number.")
+            except ValueError:
+                self.display_error("Please enter a valid number.")
+
+        # List devices in network
         elif choice == "5" and self.connected_network is not None:
             if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
+                self.display_error("No smart homes found. Please create a smart home first.")
                 return False
-            print("Devices in Network:")
-            for home in self.connected_network.smart_homes:
-                print(f"Smart Home: {home.name}")
-                for device in home.smart_devices:
-                    print(f"  Device: {device.name} ({device.device_type})")
-        #Select a device
+
+            self.display_info("Devices in Network:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.BLUE}■ Smart Home: {home.name}{Style.RESET_ALL}")
+                if not home.smart_devices:
+                    print(f"    {Fore.YELLOW}No devices in this home{Style.RESET_ALL}")
+                for j, device in enumerate(home.smart_devices, 1):
+                    status = f"{Fore.GREEN}ON{Style.RESET_ALL}" if device.is_on else f"{Fore.RED}OFF{Style.RESET_ALL}"
+                    print(f"    {Fore.YELLOW}[{j}]{Style.RESET_ALL} {device.name} ({device.device_type}) - {status}")
+
+        # Select a device
         elif choice == "6" and self.connected_network is not None:
             if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
+                self.display_error("No smart homes found. Please create a smart home first.")
                 return False
-            print("\nAvailable Smart Homes:")
-            for idx, home in enumerate(self.connected_network.smart_homes, 1):
-                print(f"  [{idx}] {home.name}")
+
+            self.display_info("Available Smart Homes:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
             try:
-                home_idx = int(input("Select a smart home by number: ")) - 1
-                smart_home = self.connected_network.smart_homes[home_idx]
-            except (ValueError, IndexError):
-                print(Fore.RED + "Invalid selection. Please enter a valid number." + Style.RESET_ALL)
+                home_idx = int(self.prompt("Select a smart home by number")) - 1
+                if 0 <= home_idx < len(self.connected_network.smart_homes):
+                    smart_home = self.connected_network.smart_homes[home_idx]
+                else:
+                    self.display_error("Invalid smart home number.")
+                    return False
+            except ValueError:
+                self.display_error("Please enter a valid number.")
                 return False
+
             if not smart_home.smart_devices:
-                print(Fore.RED + f"No devices found in {smart_home.name}." + Style.RESET_ALL)
+                self.display_error(f"No devices found in '{smart_home.name}'.")
                 return False
-            print(f"\nDevices in {smart_home.name}:")
-            for idx, device in enumerate(smart_home.smart_devices, 1):
-                print(f"  [{idx}] {device.name} ({device.device_type})")
+
+            self.display_info(f"Devices in '{smart_home.name}':")
+            for i, device in enumerate(smart_home.smart_devices, 1):
+                status = f"{Fore.GREEN}ON{Style.RESET_ALL}" if device.is_on else f"{Fore.RED}OFF{Style.RESET_ALL}"
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {device.name} ({device.device_type}) - {status}")
+
             try:
-                device_idx = int(input("Select a device by number: ")) - 1
-                device = smart_home.smart_devices[device_idx]
-            except (ValueError, IndexError):
-                print(Fore.RED + "Invalid selection. Please enter a valid number." + Style.RESET_ALL)
-                return False
-            print(Fore.GREEN + f"Selected device: {device}" + Style.RESET_ALL)
-            self.device_details(device, smart_home)
-            return False
-        #Select Network
+                device_idx = int(self.prompt("Select a device by number")) - 1
+                if 0 <= device_idx < len(smart_home.smart_devices):
+                    device = smart_home.smart_devices[device_idx]
+                    self.display_success(f"Selected device: {device.name}")
+                    self.device_details(device, smart_home)
+                else:
+                    self.display_error("Invalid device number.")
+            except ValueError:
+                self.display_error("Please enter a valid number.")
+
+        # Select Network
         elif choice == "7" and self.connected_network is not None:
-            if not self.connected_network.smart_homes:
-                print(Fore.RED + "No smart homes found. Please create a smart home first." + Style.RESET_ALL)
-                return False
             self.network_details()
-        #Log out
+
+        # Log out
         elif choice == "0":
-            print(Fore.RED + f"Logging out {self.logged_in_user.username}..." + Style.RESET_ALL)
+            self.display_info(f"Logging out {self.logged_in_user.username}...")
             self.logged_in_user.disconnect_from_network()
             self.logged_in_user = None
-            return False
-        #Connect to Network
+            self.connected_network = None
+
+        # Connect to Network
         elif choice == "1" and self.connected_network is None:
-            print("Available Networks:")
-            for network in self.networks:
-                print(network.ip_address)
-            ip_address = input("Enter the IP address of the network to connect to: ")
-            network = next((net for net in self.networks if net.ip_address == ip_address), None)
-            if network:
-                try:
-                    self.logged_in_user.connect_to_network(network)
-                    self.connected_network = network
-                    print(Fore.GREEN + f"Connected to network: {network.ip_address}" + Style.RESET_ALL)
-                except ValueError as e:
-                    print(Fore.RED + str(e) + Style.RESET_ALL)
-            else:
-                print(Fore.RED + "Network not found." + Style.RESET_ALL)
+            if not self.networks:
+                self.display_error("No networks available.")
+                return False
+
+            self.display_info("Available Networks:")
+            for i, network in enumerate(self.networks, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {network.ip_address}")
+
+            try:
+                network_idx = int(self.prompt("Select a network by number")) - 1
+                if 0 <= network_idx < len(self.networks):
+                    network = self.networks[network_idx]
+                    try:
+                        self.logged_in_user.connect_to_network(network)
+                        self.connected_network = network
+                        self.display_success(f"Connected to network: {network.ip_address}")
+                    except ValueError as e:
+                        self.display_error(str(e))
+                else:
+                    self.display_error("Invalid network number.")
+            except ValueError:
+                self.display_error("Please enter a valid number.")
+
         else:
-            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+            self.display_warning("Invalid choice. Please try again.")
+
         return False
 
     def device_details(self, device, home):
         while True:
-            print("1. Turn on/off device")
-            print("2. Get device status")
-            print("3. Schedule operation")
-            print("4. All operations")
-            print("5. All Scheduled Operations")
-            print("6. Delete device")
-            print("7. Exit")
+            self.display_header(f"DEVICE: {device.name} ({device.device_type})")
+            status = f"{Fore.GREEN}ON{Style.RESET_ALL}" if device.is_on else f"{Fore.RED}OFF{Style.RESET_ALL}"
+            print(f"Status: {status}")
 
-            choice = input("Enter your choice: ")
+            options = {
+                "1": "Turn on/off device",
+                "2": "Get device status",
+                "3": "Schedule operation",
+                "4": "Device operations",
+                "5": "View scheduled operations",
+                "6": "Delete device",
+                "7": "Back to main menu"
+            }
+            self.display_menu_options(options)
+
+            choice = self.prompt("Enter your choice")
+
             if choice == "1":
                 device.toggle()
+                status = "ON" if device.is_on else "OFF"
+                self.display_success(f"Device {device.name} turned {status}")
+
             elif choice == "2":
-                print(Fore.GREEN + f"{repr(device)}" + Style.RESET_ALL)
-                print(Fore.GREEN + f"Status: {'On' if device.is_on else 'Off'}" + Style.RESET_ALL)
-                print(Fore.GREEN + f"Device Type: {device.device_type}" + Style.RESET_ALL)
+                self.display_info(f"Device Information:")
+                print(f"  ├─ Name: {device.name}")
+                print(f"  ├─ Type: {device.device_type}")
+                print(f"  ├─ Status: {'On' if device.is_on else 'Off'}")
+                print(f"  └─ Energy: {device.energy_consumption} kWh")
+
             elif choice == "3":
-                print("Enter the time to schedule the operation (in seconds or HH:MM)")
-                print("(if in seconds, it will not be saved after the program is closed)")
-                operation_time = input(">> ")
-                try:
-                    operation_time = int(operation_time)
-                    if isinstance(operation_time, str):
-                        SmartDevice.SmartDevice.add_scheduled_operation(SmartDevice.scheduled_operation(device.serial_number, operation_time))
-    #                    'time': time.time() + operation_time,
-    #                    'function': device.toggle,
-    #                    'args': [],
-    #                    'kwargs': {}
-    #                })
-                    elif operation_time < 0:
-                        print(Fore.RED + "Time cannot be negative." + Style.RESET_ALL)
-                    else:
-                        device.delay_operation("toggle", operation_time)
-                    print(Fore.GREEN + f"Operation scheduled in {operation_time} seconds." + Style.RESET_ALL)
-                    print(SmartDevice.SmartDevice.get_scheduled_operations())
-                except ValueError as e:
-                    print(Fore.RED + f"Invalid time input: {e}" + Style.RESET_ALL)
+                self.schedule_device_operation(device, home)
+
             elif choice == "4":
-                print("Available Operations:")
-                print("1. Turn on")
-                print("2. Turn off")
-                print("3. Set brightness (for lights)")
-                print("4. Set temperature (for thermostats)")
-                print("5. Record video (for cameras)")
-                print("6. Lock (for locks)")
-                print("7. Play sound (for speakers)")
-                print("8. Ring doorbell (for doorbells)")
-                print("9. Open/Close door (for doors)")
-                operation_choice = input("Enter the number of the operation: ")
-                if operation_choice == "1":
-                    device.turn_on()
-                elif operation_choice == "2":
-                    device.turn_off()
-                elif operation_choice == "3" and isinstance(device, SmartDevice.SmartLight):
-                    brightness = int(input("Enter brightness level (0-100): "))
-                    device.set_brightness(brightness)
-                elif operation_choice == "4" and isinstance(device, SmartDevice.SmartThermostat):
-                    temperature = float(input("Enter temperature: "))
-                    device.set_temperature(temperature)
-                elif operation_choice == "5" and isinstance(device, SmartDevice.SmartCamera):
-                    device.record_video()
-                elif operation_choice == "6" and isinstance(device, SmartDevice.SmartLock):
-                    device.lock()
-                elif operation_choice == "7" and isinstance(device, SmartDevice.SmartSpeaker):
-                    sound = input("Enter sound to play: ")
-                    device.play_sound(sound)
-                elif operation_choice == "8" and isinstance(device, SmartDevice.SmartDoorbell):
-                    device.ring_doorbell()
-                elif operation_choice == "9" and isinstance(device, SmartDevice.SmartDoor):
-                    action = input("Enter 'open' or 'close': ").strip().lower()
-                    if action == "open":
-                        device.open_door()
-                    elif action == "close":
-                        device.close_door()
-                    else:
-                        print(Fore.RED + "Invalid action." + Style.RESET_ALL)
-                else:
-                    print(Fore.RED + "Invalid operation choice." + Style.RESET_ALL)
+                self.device_operations(device)
+
             elif choice == "5":
-                print(Fore.GREEN + "Scheduled Operations:" + Style.RESET_ALL)
-                for operation in SmartDevice.SmartDevice.get_scheduled_operations():
-                    print(f"Time: {operation['time']}, Function: {operation['function'].__name__}, Args: {operation['args']}, Kwargs: {operation['kwargs']}")
+                operations = SmartDevice.SmartDevice.get_scheduled_operations()
+                if operations:
+                    self.display_info("Scheduled Operations:")
+                    options = {}
+                    loop = 1
+                    for op in operations:
+                        if op.device_serial_number == device.serial_number:
+                            # Format the target_time string properly
+                            device_info = f"Device: {op.device_serial_number}"
+                            function_info = f"operation: {op.operation}"
+                            recurring = "Recurring" if op.recurring else "One-time"
+
+                            # Add to options dictionary
+                            options[str(loop)] = f"{op.target_time} - {device_info} - {function_info} ({recurring})"
+                            loop+=1
+
+                    options["0"] = "Back to device menu"
+                    self.display_menu_options(options)
+
+                    op_choice = self.prompt("Select an operation to view details or 0 to exit")
+
+                    if op_choice == "0":
+                        pass  # Return to device menu
+                    else:
+                        try:
+                            idx = int(op_choice) - 1
+                            if 0 <= idx < len(operations):
+                                selected_op = operations[idx]
+                                self.display_header("OPERATION DETAILS")
+                                print(f"Device Serial: {selected_op.device_serial_number}")
+                                print(f"Operation: {selected_op.operation}")
+                                print(f"Scheduled Time: {selected_op.target_time}")
+                                print(f"Recurring: {'Yes' if selected_op.recurring else 'No'}")
+
+                                # Show arguments if any
+                                if hasattr(selected_op, 'args') and selected_op.args:
+                                    print("Arguments:")
+                                    for arg in selected_op.args:
+                                        print(f"  - {arg}")
+
+                                # Option to delete the scheduled operation
+                                delete = self.prompt(
+                                    "Would you like to delete this operation? (yes/no)").strip().lower()
+                                if delete == "yes":
+                                    operations.remove(selected_op)
+                                    self.display_success("Operation removed successfully!")
+                            else:
+                                self.display_error("Invalid operation number.")
+                        except ValueError:
+                            self.display_error("Please enter a valid number.")
+                else:
+                    self.display_info("No scheduled operations.")
+
             elif choice == "6":
-                print(Fore.YELLOW + "Are you sure you want to delete this device? (yes/no)" + Style.RESET_ALL)
-                confirm = input(">> ").strip().lower()
+                confirm = self.prompt("Are you sure you want to delete this device? (yes/no)").strip().lower()
                 if confirm == "yes":
                     try:
                         home.remove_smart_device(device)
-                        print(Fore.GREEN + f"Device {device.name} deleted successfully!" + Style.RESET_ALL)
+                        self.display_success(f"Device '{device.name}' deleted successfully!")
+                        break
                     except ValueError as e:
-                        print(Fore.RED + str(e) + Style.RESET_ALL)
-                    break
+                        self.display_error(str(e))
                 else:
-                    print(Fore.YELLOW + "Device deletion cancelled." + Style.RESET_ALL)
+                    self.display_info("Device deletion cancelled.")
+
             elif choice == "7":
-                print(Fore.RED + "Exiting device details." + Style.RESET_ALL)
                 break
+
             else:
-                print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+                self.display_warning("Invalid choice. Please try again.")
+
+    def schedule_device_operation(self, device, home):
+        self.display_header(f"SCHEDULE OPERATION FOR {device.name}")
+
+        # Get the time to schedule
+        scheduled_time = self.prompt("Enter the time to schedule the operation (HH:MM)")
+        # Calculate minutes until the scheduled time
+        try:
+            now = time.localtime()
+            hour, minute = map(int, scheduled_time.split(":"))
+            scheduled = time.struct_time((now.tm_year, now.tm_mon, now.tm_mday, hour, minute, 0, now.tm_wday, now.tm_yday, now.tm_isdst))
+            scheduled_timestamp = time.mktime(scheduled)
+            now_timestamp = time.mktime(now)
+            if scheduled_timestamp < now_timestamp:
+                # If the time is earlier than now, schedule for the next day
+                scheduled = time.struct_time((now.tm_year, now.tm_mon, now.tm_mday + 1, hour, minute, 0, (now.tm_wday + 1) % 7, now.tm_yday + 1, now.tm_isdst))
+                scheduled_timestamp = time.mktime(scheduled)
+            minutes = int((scheduled_timestamp - now_timestamp) // 60)
+        except Exception:
+            self.display_error("Invalid time format. Please use HH:MM.")
+            return
+
+        # Get the operation from device_operations by showing the same menu but returning the operation
+        self.display_info(f"Select operation to schedule for {device.name}:")
+
+        # Define operations based on device type (same as in device_operations)
+        if isinstance(device, SmartDevice.SmartLight):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set brightness",
+                "4": "Set color"
+            }
+        elif isinstance(device, SmartDevice.SmartThermostat):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set temperature",
+                "4": "Increase temperature",
+                "5": "Decrease temperature"
+            }
+        elif isinstance(device, SmartDevice.SmartCamera):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Record",
+                "4": "Stop recording",
+                "5": "Set resolution"
+            }
+        elif isinstance(device, SmartDevice.SmartLock):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Lock",
+                "4": "Unlock"
+            }
+        elif isinstance(device, SmartDevice.SmartSpeaker):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set volume",
+                "4": "Increase volume",
+                "5": "Decrease volume",
+                "6": "Play music",
+                "7": "Stop music"
+            }
+        elif isinstance(device, SmartDevice.SmartDoorbell):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Ring",
+                "4": "Stop ringing"
+            }
+        elif isinstance(device, SmartDevice.SmartDoor):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Open door",
+                "4": "Close door"
+            }
+        else:
+            options = {
+                "1": "Turn on",
+                "2": "Turn off"
+            }
+
+        options["0"] = "Cancel scheduling"
+        self.display_menu_options(options)
+
+        choice = self.prompt("Select operation to schedule")
+
+        # Common operations
+        if choice == "1":
+            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "turn_on", scheduled_time, False)
+            self.display_success(f"Scheduled {device.name} to turn ON in {minutes} minutes")
+        elif choice == "2":
+            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "turn_off", scheduled_time, False)
+            self.display_success(f"Scheduled {device.name} to turn OFF in {minutes} minutes")
+        elif choice == "0":
+            self.display_info("Scheduling cancelled")
+            return
+
+        # Device specific operations
+        elif choice == "3":
+            if isinstance(device, SmartDevice.SmartLight):
+                try:
+                    brightness = int(self.prompt("Enter brightness level (0-100)"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_brightness", scheduled_time, False, brightness)
+                    self.display_success(
+                        f"Scheduled {device.name} brightness to set to {brightness} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    temp = float(self.prompt("Enter temperature"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_temperature", scheduled_time, False)
+                    self.display_success(f"Scheduled {device.name} temperature to set to {temp} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid temperature")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "record", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to start recording in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartLock):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "lock", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to lock in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    volume = int(self.prompt("Enter volume level (0-100)"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_volume", scheduled_time, False, volume)
+                    self.display_success(f"Scheduled {device.name} volume to set to {volume} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartDoorbell):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "ring", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to ring in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartDoor):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "open_door", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to open in {minutes} minutes")
+            else:
+                self.display_error("Invalid operation for this device type")
+                return
+
+        # Continue with the rest of the device-specific operations
+        # (Rest of implementation follows the same pattern as device_operations)
+        elif choice == "4":
+            if isinstance(device, SmartDevice.SmartLight):
+                color = self.prompt("Enter color")
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_color", scheduled_time, False, color)
+                self.display_success(f"Scheduled {device.name} color to set to {color} in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    amount = float(self.prompt("Enter amount to increase"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "increase_temperature", scheduled_time, False, amount)
+                    self.display_success(
+                        f"Scheduled {device.name} temperature to increase by {amount} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_recording", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to stop recording in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartLock):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "unlock", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to unlock in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    amount = int(self.prompt("Enter amount to increase"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "increase_volume", scheduled_time, False, amount)
+                    self.display_success(f"Scheduled {device.name} volume to increase by {amount} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartDoorbell):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_ringing", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to stop ringing in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartDoor):
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "close_door", scheduled_time, False)
+                self.display_success(f"Scheduled {device.name} to close in {minutes} minutes")
+            else:
+                self.display_error("Invalid operation for this device type")
+                return
+        elif choice == "5":
+            if isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    amount = float(self.prompt("Enter amount to decrease"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "decrease_temperature", scheduled_time, False, amount)
+                    self.display_success(f"Scheduled {device.name} temperature to decrease by {amount} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                resolution = self.prompt("Enter resolution (e.g. 1080p)")
+                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_resolution", scheduled_time, False, resolution)
+                self.display_success(f"Scheduled {device.name} resolution to set to {resolution} in {minutes} minutes")
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    amount = int(self.prompt("Enter amount to decrease"))
+                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "decrease_volume", scheduled_time, False, amount)
+                    self.display_success(f"Scheduled {device.name} volume to decrease by {amount} in {minutes} minutes")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            else:
+                self.display_error("Invalid operation for this device type")
+                return
+
+        elif choice == "6" and isinstance(device, SmartDevice.SmartSpeaker):
+            song = self.prompt("Enter name of song to play")
+            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "play_music", scheduled_time, False, song)
+            self.display_success(f"Scheduled {device.name} to play '{song}' in {minutes} minutes")
+
+        elif choice == "7" and isinstance(device, SmartDevice.SmartSpeaker):
+            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_music", scheduled_time, False)
+            self.display_success(f"Scheduled {device.name} to stop music in {minutes} minutes")
+
+        else:
+            self.display_error("Invalid choice. Please try again.")
+            return
+        recurring = self.prompt("Is this a recurring operation? (yes/no)").strip().lower()
+        if recurring == "yes":
+            # Schedule the recurring operation
+            temp_sch.recurring = True
+            self.display_success(f"Recurring operation scheduled")
+        elif recurring == "no":
+            temp_sch.recurring = False
+            self.display_success("Non-recurring operation scheduled successfully")
+        temp_sch.load(device)
+
+    def device_operations(self, device):
+        self.display_header(f"OPERATIONS FOR {device.name}")
+
+        # Define operations based on device type
+        if isinstance(device, SmartDevice.SmartLight):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set brightness",
+                "4": "Set color"
+            }
+        elif isinstance(device, SmartDevice.SmartThermostat):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set temperature",
+                "4": "Increase temperature",
+                "5": "Decrease temperature"
+            }
+        elif isinstance(device, SmartDevice.SmartCamera):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Record",
+                "4": "Stop recording",
+                "5": "Set resolution"
+            }
+        elif isinstance(device, SmartDevice.SmartLock):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Lock",
+                "4": "Unlock"
+            }
+        elif isinstance(device, SmartDevice.SmartSpeaker):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Set volume",
+                "4": "Increase volume",
+                "5": "Decrease volume",
+                "6": "Play music",
+                "7": "Stop music"
+            }
+        elif isinstance(device, SmartDevice.SmartDoorbell):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Ring",
+                "4": "Stop ringing"
+            }
+        elif isinstance(device, SmartDevice.SmartDoor):
+            options = {
+                "1": "Turn on",
+                "2": "Turn off",
+                "3": "Open door",
+                "4": "Close door"
+            }
+        else:
+            options = {
+                "1": "Turn on",
+                "2": "Turn off"
+            }
+
+        options["0"] = "Back to device menu"
+        self.display_menu_options(options)
+
+        choice = self.prompt("Select operation")
+
+        # Common operations
+        if choice == "1":
+            device.turn_on()
+            self.display_success(f"{device.name} turned ON")
+        elif choice == "2":
+            device.turn_off()
+            self.display_success(f"{device.name} turned OFF")
+        elif choice == "0":
+            return
+
+        # Device specific operations
+        elif choice == "3":
+            if isinstance(device, SmartDevice.SmartLight):
+                try:
+                    brightness = int(self.prompt("Enter brightness level (0-100)"))
+                    device.set_brightness(brightness)
+                    self.display_success(f"Brightness set to {brightness}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    temp = float(self.prompt("Enter temperature"))
+                    device.set_temperature(temp)
+                    self.display_success(f"Temperature set to {temp}")
+                except ValueError:
+                    self.display_error("Please enter a valid temperature")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                device.record()
+            elif isinstance(device, SmartDevice.SmartLock):
+                device.lock()
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    volume = int(self.prompt("Enter volume level (0-100)"))
+                    device.set_volume(volume)
+                    self.display_success(f"Volume set to {volume}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartDoorbell):
+                device.ring()
+            elif isinstance(device, SmartDevice.SmartDoor):
+                device.open_door()
+
+        elif choice == "4":
+            if isinstance(device, SmartDevice.SmartLight):
+                color = self.prompt("Enter color")
+                device.set_colour(color)
+                self.display_success(f"Color set to {color}")
+            elif isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    amount = float(self.prompt("Enter amount to increase"))
+                    device.increase_temperature(amount)
+                    self.display_success(f"Temperature increased by {amount}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                device.stop_recording()
+            elif isinstance(device, SmartDevice.SmartLock):
+                device.unlock()
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    amount = int(self.prompt("Enter amount to increase"))
+                    device.increase_volume(amount)
+                    self.display_success(f"Volume increased by {amount}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartDoorbell):
+                device.stop_ringing()
+            elif isinstance(device, SmartDevice.SmartDoor):
+                device.close_door()
+
+        elif choice == "5":
+            if isinstance(device, SmartDevice.SmartThermostat):
+                try:
+                    amount = float(self.prompt("Enter amount to decrease"))
+                    device.decrease_temperature(amount)
+                    self.display_success(f"Temperature decreased by {amount}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+            elif isinstance(device, SmartDevice.SmartCamera):
+                resolution = self.prompt("Enter resolution (e.g. 1080p)")
+                device.set_resolution(resolution)
+                self.display_success(f"Resolution set to {resolution}")
+            elif isinstance(device, SmartDevice.SmartSpeaker):
+                try:
+                    amount = int(self.prompt("Enter amount to decrease"))
+                    device.decrease_volume(amount)
+                    self.display_success(f"Volume decreased by {amount}")
+                except ValueError:
+                    self.display_error("Please enter a valid number")
+
+        elif choice == "6" and isinstance(device, SmartDevice.SmartSpeaker):
+            song = self.prompt("Enter name of song to play")
+            device.play_music(song)
+
+        elif choice == "7" and isinstance(device, SmartDevice.SmartSpeaker):
+            device.stop_music()
+
+        else:
+            self.display_warning("Invalid choice or operation not available for this device type.")
 
     def home_details(self, home):
         while True:
-            print("1. List devices")
-            print("2. Secure home")
-            print("3. Home Energy Consumption")
-            print("4. Delete home")
-            print("5. Exit")
-            choice = input("Enter your choice: ")
+            self.display_header(f"SMART HOME: {home.name}")
+
+            options = {
+                "1": "List devices",
+                "2": "Secure home",
+                "3": "Energy consumption",
+                "4": "Turn all devices ON",
+                "5": "Turn all devices OFF",
+                "6": "Delete home",
+                "7": "Back to main menu"
+            }
+            self.display_menu_options(options)
+
+            choice = self.prompt("Enter your choice")
+
             if choice == "1":
-                print(Fore.GREEN + f"Devices in {home.name}:" + Style.RESET_ALL)
-                for device in home.smart_devices:
-                    print(device)
+                self.display_info(f"Devices in '{home.name}':")
+                if not home.smart_devices:
+                    print(f"  {Fore.YELLOW}No devices found{Style.RESET_ALL}")
+                for i, device in enumerate(home.smart_devices, 1):
+                    status = f"{Fore.GREEN}ON{Style.RESET_ALL}" if device.is_on else f"{Fore.RED}OFF{Style.RESET_ALL}"
+                    print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {device.name} ({device.device_type}) - {status}")
+
             elif choice == "2":
                 home.secure_home()
-                print(Fore.GREEN + f"Security check completed for {home.name}." + Style.RESET_ALL)
+
             elif choice == "3":
-                energy_consumption = home.get_energy_consumption()
-                print(Fore.GREEN + f"Total energy consumption for {home.name}: {energy_consumption} kWh" + Style.RESET_ALL)
+                home.get_energy_consumption()
+
             elif choice == "4":
-                print(Fore.YELLOW + "Are you sure you want to delete this home? (yes/no)" + Style.RESET_ALL)
-                confirm = input(">> ").strip().lower()
+                home.turn_on_all_devices()
+
+            elif choice == "5":
+                home.turn_off_all_devices()
+
+            elif choice == "6":
+                confirm = self.prompt("Are you sure you want to delete this home? (yes/no)").strip().lower()
                 if confirm == "yes":
                     try:
                         self.connected_network.remove_smart_home(home)
-                        print(Fore.GREEN + f"Smart home {home.name} deleted successfully!" + Style.RESET_ALL)
+                        self.display_success(f"Smart home '{home.name}' deleted successfully!")
+                        break
                     except ValueError as e:
-                        print(Fore.RED + str(e) + Style.RESET_ALL)
-                    break
+                        self.display_error(str(e))
                 else:
-                    print(Fore.YELLOW + "Home deletion cancelled." + Style.RESET_ALL)
-            elif choice == "5":
-                print(Fore.RED + "Exiting home details." + Style.RESET_ALL)
+                    self.display_info("Home deletion cancelled.")
+
+            elif choice == "7":
                 break
+
             else:
-                print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+                self.display_warning("Invalid choice. Please try again.")
 
     def network_details(self):
-        print("1. List smart homes")
-        print("2. Add smart home")
-        print("3. Remove smart home")
-        print("4. List devices in network")
-        choice = input("Enter your choice: ")
+        self.display_header(f"NETWORK: {self.connected_network.ip_address}")
+
+        options = {
+            "1": "List smart homes",
+            "2": "Add smart home",
+            "3": "Remove smart home",
+            "4": "List all devices",
+            "5": "Disconnect from network",
+            "6": "Back to main menu"
+        }
+        self.display_menu_options(options)
+
+        choice = self.prompt("Enter your choice")
+
         if choice == "1":
-            print(Fore.GREEN + f"Smart homes in network {self.connected_network.ip_address}:" + Style.RESET_ALL)
-            for home in self.connected_network.smart_homes:
-                print(home)
+            self.display_info(f"Smart homes in network {self.connected_network.ip_address}:")
+            if not self.connected_network.smart_homes:
+                print(f"  {Fore.YELLOW}No smart homes found{Style.RESET_ALL}")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
         elif choice == "2":
-            name = input("Enter a name for the smart home: ")
+            name = self.prompt("Enter a name for the smart home")
             smart_home = User.SmartHome(self.connected_network, name)
             self.connected_network.add_smart_home(smart_home)
-            print(Fore.GREEN + f"Smart home {name} added successfully!" + Style.RESET_ALL)
-        elif choice == "3":
-            name = input("Enter the name of the smart home to remove: ")
-            smart_home = next((home for home in self.connected_network.smart_homes if home.name == name), None)
-            if smart_home:
-                self.connected_network.remove_smart_home(smart_home)
-                print(Fore.GREEN + f"Smart home {name} removed successfully!" + Style.RESET_ALL)
-            else:
-                print(Fore.RED + "Smart home not found." + Style.RESET_ALL)
-        elif choice == "4":
-            self.connected_network.list_devices_in_network()
-        else:
-            print(Fore.YELLOW + "Invalid choice. Please try again." + Style.RESET_ALL)
+            self.display_success(f"Smart home '{name}' added successfully!")
 
+        elif choice == "3":
+            if not self.connected_network.smart_homes:
+                self.display_error("No smart homes found.")
+                return
+
+            self.display_info("Available Smart Homes:")
+            for i, home in enumerate(self.connected_network.smart_homes, 1):
+                print(f"  {Fore.YELLOW}[{i}]{Style.RESET_ALL} {home.name}")
+
+            try:
+                home_idx = int(self.prompt("Select a smart home to remove")) - 1
+                if 0 <= home_idx < len(self.connected_network.smart_homes):
+                    smart_home = self.connected_network.smart_homes[home_idx]
+                    confirm = self.prompt(
+                        f"Are you sure you want to remove '{smart_home.name}'? (yes/no)").strip().lower()
+                    if confirm == "yes":
+                        self.connected_network.remove_smart_home(smart_home)
+                        self.display_success(f"Smart home '{smart_home.name}' removed successfully!")
+                    else:
+                        self.display_info("Home removal cancelled.")
+                else:
+                    self.display_error("Invalid smart home number.")
+            except ValueError:
+                self.display_error("Please enter a valid number.")
+
+        elif choice == "4":
+            self.display_info("All Devices in Network:")
+            device_count = 0
+            for home in self.connected_network.smart_homes:
+                if home.smart_devices:
+                    print(f"  {Fore.BLUE}■ Smart Home: {home.name}{Style.RESET_ALL}")
+                    for device in home.smart_devices:
+                        status = f"{Fore.GREEN}ON{Style.RESET_ALL}" if device.is_on else f"{Fore.RED}OFF{Style.RESET_ALL}"
+                        print(f"    {Fore.YELLOW}►{Style.RESET_ALL} {device.name} ({device.device_type}) - {status}")
+                        device_count += 1
+
+            if device_count == 0:
+                print(f"  {Fore.YELLOW}No devices found in any smart home{Style.RESET_ALL}")
+
+        elif choice == "5":
+            confirm = self.prompt("Are you sure you want to disconnect from the network? (yes/no)").strip().lower()
+            if confirm == "yes":
+                self.logged_in_user.disconnect_from_network()
+                self.connected_network = None
+                self.display_success("Disconnected from network successfully!")
+            else:
+                self.display_info("Disconnection cancelled.")
+
+        elif choice == "6":
+            return
+
+        else:
+            self.display_warning("Invalid choice. Please try again.")
 
     def loop(self):
         while True:
@@ -426,19 +991,37 @@ class GUI():
                 break
             time.sleep(1)
 
-    def opperation_check(self):
-        if self.schedualed_operations:
-            for operation in self.schedualed_operations:
-                if operation['time'] <= time.time():
-                    try:
-                        operation['function'](*operation['args'], **operation['kwargs'])
-                        self.schedualed_operations.remove(operation)
-                    except Exception as e:
-                        print(Fore.RED + f"Error during scheduled operation: {e}" + Style.RESET_ALL)
+
+    def load_scheduals(self):
+        # Load scheduled operations from file
+        try:
+            SmartDevice.SmartDevice.scheduled_operations = self.scheduled_operations
+            devices = []
+            for i in self.networks:
+                devices.append(i.list_smart_devices())
+            #for x in devices:
+                #for y in x:
+                    #print(y.serial_number)
+            print(devices)
+            for i in self.scheduled_operations:
+                print(i.device_serial_number)
+            for x in devices:
+                for y in x:
+                    if isinstance(y, SmartDevice.SmartDevice):
+                        for z in self.scheduled_operations:
+                            if z.device_serial_number == y.serial_number:
+                                z.load(y)
+            self.scheduled_operations = []
+        except FileNotFoundError:
+            self.display_error("Scheduled operations file not found. Starting with empty schedule.")
+
 
 if __name__ == "__main__":
-    gui = GUI()
-    gui.connected_network = Network.Network("19")
-    gui.networks.append(gui.connected_network)
+    with open("data.pkl", "rb") as f:
+        gui = pickle.load(f)
+    gui.load_scheduals()
     gui.loop()
-
+    gui.scheduled_operations = SmartDevice.SmartDevice.scheduled_operations
+    with open("data.pkl", "wb") as f:
+        pickle.dump(gui, f)
+    print(SmartDevice.SmartDevice._device_count)

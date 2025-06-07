@@ -8,6 +8,7 @@ class User:
             raise ValueError("Username exists in the system. Please choose a different username.")
         self.username = username
         self.network = None
+        self.connected_homes = []
         self.user_id = User._Users
         User._Users += 1
 
@@ -34,69 +35,82 @@ class User:
 
 
 class SmartHome:
+    _home_count = 0
     def __init__(self, network, name):
-        self.smart_hubs = []
         self.smart_devices = []
         self.network = network
         self.name = name
+        self.home_id = SmartHome._home_count
+        if not isinstance(network, Network.Network):
+            raise TypeError("Network must be an instance of Network class.")
+        SmartHome._home_count += 1
+        self.network.add_smart_home(self)
+
     def __str__(self):
         return f"SmartHome: {self.name}, Network: {self.network.ip_address}"
     def __repr__(self):
         return f"SmartHome(name={self.name}, network={self.network.ip_address}, smart_hubs={self.smart_hubs}, smart_devices={self.smart_devices})"
     def __del__(self):
-        print(f"SmartHome {self.name} has been removed from the system")
-        for smart_hub in self.smart_hubs:
-            smart_hub.__del__()
+        print(f"⚠️ SmartHome '{self.name}' has been removed from the system")
+        print(f"  └─ Removing {len(self.smart_devices)} devices...")
         for smart_device in self.smart_devices:
             smart_device.__del__()
-        self.smart_hubs.clear()
         self.smart_devices.clear()
 
-    def add_smart_hub(self, smart_hub):
-        self.smart_hubs.append(smart_hub)
-        print(f"{smart_hub.name} has been added to {self.name}.")
-
-    def remove_smart_hub(self, smart_hub):
-        self.smart_hubs.remove(smart_hub)
-        print(f"{smart_hub.name} has been removed from {self.name}.")
-
-    def list_smart_hubs(self):
-        return [smart_hub.name for smart_hub in self.smart_hubs]
 
     def add_smart_device(self, smart_device):
         self.smart_devices.append(smart_device)
-        print(f"{smart_device.name} has been added to {self.name}.")
+        print(f"✓ Added device '{smart_device.name}' to '{self.name}'")
 
     def remove_smart_device(self, smart_device):
         self.smart_devices.remove(smart_device)
-        print(f"{smart_device.name} has been removed from {self.name}.")
+        print(f"✓ Removed device '{smart_device.name}' from '{self.name}'")
 
     def list_smart_devices(self):
-        return [smart_device.name for smart_device in self.smart_devices]
+        return [smart_device for smart_device in self.smart_devices]
 
     def secure_home(self):
         points = 0
         secure_types = ["Lock", "Camera", "Doorbell", "Door"]
+        security_devices = []
+
         for device in self.smart_devices:
             if device.device_type in secure_types:
+                security_devices.append(device)
                 points += 1
                 if device.is_on:
                     points += 1
+
+        print(f"\n📊 Security Assessment for '{self.name}':")
+        print(f"  ├─ Security devices: {len(security_devices)}/{len(self.smart_devices)}")
+        print(f"  ├─ Active security devices: {sum(1 for d in security_devices if d.is_on)}/{len(security_devices)}")
+        print(f"  └─ Security score: {points}/10")
+
         if points >= 6:
-            print(f"{self.name} is secure.")
+            print(f"  ✅ '{self.name}' is secure.")
         else:
-            print(f"{self.name} is not secure. Points: {points}")
+            print(f"  ⚠️ '{self.name}' is not secure. Consider adding more security devices.")
+
 
     def turn_on_all_devices(self):
+        print(f"📱 Turning on all devices in '{self.name}':")
         for device in self.smart_devices:
             device.turn_on()
-        print(f"All devices in {self.name} have been turned on.")
+            print(f"  ├─ {device.name}: ON")
+        print(f"  └─ All {len(self.smart_devices)} devices activated.")
     def turn_off_all_devices(self):
+        print(f"📱 Turning off all devices in '{self.name}':")
         for device in self.smart_devices:
             device.turn_off()
-        print(f"All devices in {self.name} have been turned off.")
+            print(f"  ├─ {device.name}: OFF")
+        print(f"  └─ All {len(self.smart_devices)} devices deactivated.")
 
-    def get_engergy_consumption(self):
+    def get_energy_consumption(self):
         total_consumption = sum(device.energy_consumption for device in self.smart_devices if device.is_on)
-        print(f"Total energy consumption in {self.name}: {total_consumption} kWh")
+        active_devices = sum(1 for device in self.smart_devices if device.is_on)
+
+        print(f"\n⚡ Energy consumption for '{self.name}':")
+        print(f"  ├─ Active devices: {active_devices}/{len(self.smart_devices)}")
+        print(f"  └─ Total consumption: {total_consumption:.2f} kWh")
+
         return total_consumption

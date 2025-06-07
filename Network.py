@@ -22,3 +22,9 @@ class Network:
     def list_smart_homes(self):
         return [smart_home.name for smart_home in self.smart_homes]
 
+    def list_smart_devices(self):
+        devices = []
+        for smart_home in self.smart_homes:
+            devices.extend(smart_home.list_smart_devices())
+        return devices
+
