@@ -18,7 +18,7 @@ def is_on_check(func):
     return wrapper
 
 # This class represents a scheduled operation for a smart device.
-class scheduled_operation():
+class ScheduledOperation():
     def __init__(self, device_serial_number, operation, target_time, recurring, *args, **kwargs):
         self.recurring = recurring
         self.operation = operation
@@ -198,14 +198,14 @@ class SmartDevice():
 
     @classmethod
     def add_scheduled_operation(cls, operation):
-        if not isinstance(operation, scheduled_operation):
+        if not isinstance(operation, ScheduledOperation):
             raise TypeError("Only scheduled_operation instances can be added.")
         cls.scheduled_operations.append(operation)
         print(f"Scheduled operation {operation} has been added for {operation.device_serial_number}.")
 
     @classmethod
     def remove_scheduled_operation(cls, operation):
-        if not isinstance(operation, scheduled_operation):
+        if not isinstance(operation, ScheduledOperation):
             raise TypeError("Only scheduled_operation instances can be removed.")
         try:
             cls.scheduled_operations.remove(operation)

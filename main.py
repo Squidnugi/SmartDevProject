@@ -43,34 +43,28 @@ class GUI():
 
     # Display menu options in a consistent format
     def display_menu_options(self, options):
-        """Display menu options in a consistent format"""
         for idx, option in options.items():
             print(f"  {Fore.YELLOW}[{idx}]{Style.RESET_ALL} {option}")
         print("─" * 50)
 
     # Display messages in a consistent format
     def display_success(self, message):
-        """Display success messages in a consistent format"""
         print(f"{Fore.GREEN}✓ {message}{Style.RESET_ALL}")
 
     # Display error messages in a consistent format
     def display_error(self, message):
-        """Display error messages in a consistent format"""
         print(f"{Fore.RED}✗ {message}{Style.RESET_ALL}")
 
     # Display warning messages in a consistent format
     def display_warning(self, message):
-        """Display warning messages in a consistent format"""
         print(f"{Fore.YELLOW}⚠ {message}{Style.RESET_ALL}")
 
     # Display info messages in a consistent format
     def display_info(self, message):
-        """Display info messages in a consistent format"""
         print(f"{Fore.BLUE}ℹ {message}{Style.RESET_ALL}")
 
     # Prompt user for input with consistent formatting
     def prompt(self, message):
-        """Prompt user for input with consistent formatting"""
         return input(f"{Fore.CYAN}► {message}: {Style.RESET_ALL}")
 
     # Main Menu for when no user logged in
@@ -593,10 +587,10 @@ class GUI():
 
         # Common operations
         if choice == "1":
-            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "turn_on", scheduled_time, False)
+            temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "turn_on", scheduled_time, False)
             self.display_success(f"Scheduled {device.name} to turn ON in {minutes} minutes")
         elif choice == "2":
-            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "turn_off", scheduled_time, False)
+            temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "turn_off", scheduled_time, False)
             self.display_success(f"Scheduled {device.name} to turn OFF in {minutes} minutes")
         elif choice == "0":
             self.display_info("Scheduling cancelled")
@@ -607,7 +601,7 @@ class GUI():
             if isinstance(device, SmartDevice.SmartLight):
                 try:
                     brightness = int(self.prompt("Enter brightness level (0-100)"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_brightness", scheduled_time, False, brightness)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "set_brightness", scheduled_time, False, brightness)
                     self.display_success(
                         f"Scheduled {device.name} brightness to set to {brightness} in {minutes} minutes")
                 except ValueError:
@@ -615,28 +609,28 @@ class GUI():
             elif isinstance(device, SmartDevice.SmartThermostat):
                 try:
                     temp = float(self.prompt("Enter temperature"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_temperature", scheduled_time, False)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "set_temperature", scheduled_time, False)
                     self.display_success(f"Scheduled {device.name} temperature to set to {temp} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid temperature")
             elif isinstance(device, SmartDevice.SmartCamera):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "record", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "record", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to start recording in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartLock):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "lock", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "lock", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to lock in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartSpeaker):
                 try:
                     volume = int(self.prompt("Enter volume level (0-100)"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_volume", scheduled_time, False, volume)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "set_volume", scheduled_time, False, volume)
                     self.display_success(f"Scheduled {device.name} volume to set to {volume} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid number")
             elif isinstance(device, SmartDevice.SmartDoorbell):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "ring", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "ring", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to ring in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartDoor):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "open_door", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "open_door", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to open in {minutes} minutes")
             else:
                 self.display_error("Invalid operation for this device type")
@@ -645,34 +639,34 @@ class GUI():
         elif choice == "4":
             if isinstance(device, SmartDevice.SmartLight):
                 colour = self.prompt("Enter colour")
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_colour", scheduled_time, False, colour)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "set_colour", scheduled_time, False, colour)
                 self.display_success(f"Scheduled {device.name} colour to set to {colour} in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartThermostat):
                 try:
                     amount = float(self.prompt("Enter amount to increase"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "increase_temperature", scheduled_time, False, amount)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "increase_temperature", scheduled_time, False, amount)
                     self.display_success(
                         f"Scheduled {device.name} temperature to increase by {amount} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid number")
             elif isinstance(device, SmartDevice.SmartCamera):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_recording", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "stop_recording", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to stop recording in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartLock):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "unlock", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "unlock", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to unlock in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartSpeaker):
                 try:
                     amount = int(self.prompt("Enter amount to increase"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "increase_volume", scheduled_time, False, amount)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "increase_volume", scheduled_time, False, amount)
                     self.display_success(f"Scheduled {device.name} volume to increase by {amount} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid number")
             elif isinstance(device, SmartDevice.SmartDoorbell):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_ringing", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "stop_ringing", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to stop ringing in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartDoor):
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "close_door", scheduled_time, False)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "close_door", scheduled_time, False)
                 self.display_success(f"Scheduled {device.name} to close in {minutes} minutes")
             else:
                 self.display_error("Invalid operation for this device type")
@@ -682,18 +676,18 @@ class GUI():
             if isinstance(device, SmartDevice.SmartThermostat):
                 try:
                     amount = float(self.prompt("Enter amount to decrease"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "decrease_temperature", scheduled_time, False, amount)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "decrease_temperature", scheduled_time, False, amount)
                     self.display_success(f"Scheduled {device.name} temperature to decrease by {amount} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid number")
             elif isinstance(device, SmartDevice.SmartCamera):
                 resolution = self.prompt("Enter resolution (e.g. 1080p)")
-                temp_sch = SmartDevice.scheduled_operation(device.serial_number, "set_resolution", scheduled_time, False, resolution)
+                temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "set_resolution", scheduled_time, False, resolution)
                 self.display_success(f"Scheduled {device.name} resolution to set to {resolution} in {minutes} minutes")
             elif isinstance(device, SmartDevice.SmartSpeaker):
                 try:
                     amount = int(self.prompt("Enter amount to decrease"))
-                    temp_sch = SmartDevice.scheduled_operation(device.serial_number, "decrease_volume", scheduled_time, False, amount)
+                    temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "decrease_volume", scheduled_time, False, amount)
                     self.display_success(f"Scheduled {device.name} volume to decrease by {amount} in {minutes} minutes")
                 except ValueError:
                     self.display_error("Please enter a valid number")
@@ -703,11 +697,11 @@ class GUI():
 
         elif choice == "6" and isinstance(device, SmartDevice.SmartSpeaker):
             song = self.prompt("Enter name of song to play")
-            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "play_music", scheduled_time, False, song)
+            temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "play_music", scheduled_time, False, song)
             self.display_success(f"Scheduled {device.name} to play '{song}' in {minutes} minutes")
 
         elif choice == "7" and isinstance(device, SmartDevice.SmartSpeaker):
-            temp_sch = SmartDevice.scheduled_operation(device.serial_number, "stop_music", scheduled_time, False)
+            temp_sch = SmartDevice.ScheduledOperation(device.serial_number, "stop_music", scheduled_time, False)
             self.display_success(f"Scheduled {device.name} to stop music in {minutes} minutes")
 
         # Invalid choice
@@ -1085,7 +1079,7 @@ class GUI():
 if __name__ == "__main__":
     #change this to False if you want to load the data from the file
     #change this to True if you want to start with a fresh GUI
-    first_start = False
+    first_start = True
     if first_start:
         gui = GUI()
         gui.add_network(Network.Network("1"))
