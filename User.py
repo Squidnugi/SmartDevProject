@@ -1,6 +1,6 @@
 import Network
 
-#each home is connected to a IP address and when a user connects to that IP address, they can access the smart devices in that home
+# This code defines a User class that represents a user in a smart home system.
 class User:
     _Users = 0
     def __init__(self, username):
@@ -8,10 +8,10 @@ class User:
             raise ValueError("Username exists in the system. Please choose a different username.")
         self.username = username
         self.network = None
-        self.connected_homes = []
         self.user_id = User._Users
         User._Users += 1
 
+    # Magic Methods
     def __str__(self):
         return f"User: {self.username}"
     def __repr__(self):
@@ -19,7 +19,7 @@ class User:
     def __del__(self):
         print(f"User {self.username} has been removed from the system")
 
-
+    # Connect and Disconnect from Network
     def connect_to_network(self, network):
         if not isinstance(network, Network.Network):
             raise TypeError("Can only connect to a Network instance.")
@@ -33,7 +33,12 @@ class User:
         self.network = None
         print(f"{self.username} has disconnected from the network.")
 
+    # Get User Count
+    @classmethod
+    def get_user_count(cls):
+        return cls._Users
 
+# This code defines a SmartHome class that represents a smart home in a network.
 class SmartHome:
     _home_count = 0
     def __init__(self, network, name):
@@ -46,10 +51,11 @@ class SmartHome:
         SmartHome._home_count += 1
         self.network.add_smart_home(self)
 
+    # Magic Methods
     def __str__(self):
         return f"SmartHome: {self.name}, Network: {self.network.ip_address}"
     def __repr__(self):
-        return f"SmartHome(name={self.name}, network={self.network.ip_address}, smart_hubs={self.smart_hubs}, smart_devices={self.smart_devices})"
+        return f"SmartHome(name={self.name}, network={self.network.ip_address}, smart_devices={self.smart_devices})"
     def __del__(self):
         print(f"⚠️ SmartHome '{self.name}' has been removed from the system")
         print(f"  └─ Removing {len(self.smart_devices)} devices...")
@@ -57,7 +63,7 @@ class SmartHome:
             smart_device.__del__()
         self.smart_devices.clear()
 
-
+    # Add and Remove Smart Devices
     def add_smart_device(self, smart_device):
         self.smart_devices.append(smart_device)
         print(f"✓ Added device '{smart_device.name}' to '{self.name}'")
@@ -66,12 +72,14 @@ class SmartHome:
         self.smart_devices.remove(smart_device)
         print(f"✓ Removed device '{smart_device.name}' from '{self.name}'")
 
+    # List Smart Devices
     def list_smart_devices(self):
         return [smart_device for smart_device in self.smart_devices]
 
+    # Security Assessment
     def secure_home(self):
         points = 0
-        secure_types = ["Lock", "Camera", "Doorbell", "Door"]
+        secure_types = ["Lock", "Security Camera", "Doorbell", "Door"]
         security_devices = []
 
         for device in self.smart_devices:
@@ -92,6 +100,7 @@ class SmartHome:
             print(f"  ⚠️ '{self.name}' is not secure. Consider adding more security devices.")
 
 
+    # Turn On/Off All Devices
     def turn_on_all_devices(self):
         print(f"📱 Turning on all devices in '{self.name}':")
         for device in self.smart_devices:
@@ -105,6 +114,7 @@ class SmartHome:
             print(f"  ├─ {device.name}: OFF")
         print(f"  └─ All {len(self.smart_devices)} devices deactivated.")
 
+    # Get Energy Consumption
     def get_energy_consumption(self):
         total_consumption = sum(device.energy_consumption for device in self.smart_devices if device.is_on)
         active_devices = sum(1 for device in self.smart_devices if device.is_on)
