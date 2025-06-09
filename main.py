@@ -15,6 +15,7 @@ class GUI():
         self.scheduled_operations = []
         self.device_count = 0
         self.user_count = 0
+        self.home_count = 0
 
     # Add a user to the GUI
     def add_user(self, user):
@@ -1098,11 +1099,13 @@ if __name__ == "__main__":
         # Update the device count
         SmartDevice.SmartDevice._device_count = gui.device_count
         User.User._Users = gui.user_count
+        User.SmartHome._home_count = gui.home_count
     # Start the program
     gui.loop()
     # Save the GUI state to a file
     gui.scheduled_operations = SmartDevice.SmartDevice.scheduled_operations
     gui.device_count = SmartDevice.SmartDevice.get_device_count()
     gui.user_count = User.User.get_user_count()
+    gui.home_count = User.SmartHome.get_home_count()
     with open("data.pkl", "wb") as f:
         pickle.dump(gui, f)

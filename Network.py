@@ -1,3 +1,4 @@
+
 ## This code defines a Network class that manages smart homes and their devices.
 class Network:
     def __init__(self, ip_address):

@@ -124,3 +124,8 @@ class SmartHome:
         print(f"  └─ Total consumption: {total_consumption:.2f} kWh")
 
         return total_consumption
+
+    # Get Smart Home Count
+    @classmethod
+    def get_home_count(cls):
+        return cls._home_count
