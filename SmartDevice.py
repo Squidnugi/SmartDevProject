@@ -36,7 +36,7 @@ class ScheduledOperation():
     def __del__(self):
         print(Fore.RED + f"Scheduled operation for {self.device_serial_number} has been removed." + Style.RESET_ALL)
         try:
-            SmartDevice.scheduled_operations.remove(self)
+            SmartDevice._scheduled_operations.remove(self)
         except ValueError:
             print(Fore.YELLOW + f"Scheduled operation for {self.device_serial_number} was not found in the list." + Style.RESET_ALL)
 
@@ -56,7 +56,7 @@ class ScheduledOperation():
 # This code defines a SmartDevice class that represents a smart device in a smart home network.
 class SmartDevice():
     _device_count = 0
-    scheduled_operations = []
+    _scheduled_operations = []
 
     def __init__(self, name, device_type):
         self.name = name
@@ -79,7 +79,7 @@ class SmartDevice():
             print(f"  └─ Disconnecting from network at {self.network.ip_address}.")
             self.disconnect()
         print(f"  └─ Removing scheduled operations for {self.name}.")
-        for operation in SmartDevice.scheduled_operations:
+        for operation in SmartDevice._scheduled_operations:
             if operation.device_serial_number == self.serial_number:
                 operation.__del__()
 
@@ -125,9 +125,6 @@ class SmartDevice():
 
     # Set a delayed operation to be executed after a specific delay
     def delay_operation(self, operation, delay_seconds, recurring, sch_class, target_time, *args, **kwargs):
-        """
-        Execute an operation after a specific delay in seconds.
-        """
         if not hasattr(self, operation):
             print(f"Operation {operation} is not available for {self.name}.")
             return
@@ -140,7 +137,7 @@ class SmartDevice():
             except Exception as e:
                 print(f"Error during {operation} for {self.name}: {e}")
             if not recurring:
-                print(SmartDevice.scheduled_operations)
+                print(SmartDevice._scheduled_operations)
                 print(f"Removing scheduled operation {operation} for {self.name}.")
                 # If not recurring, remove the operation from scheduled operations
                 SmartDevice.remove_scheduled_operation(sch_class)
@@ -155,10 +152,6 @@ class SmartDevice():
 
     # Schedule an operation to run at a specific time or after a delay.
     def schedule_operation(self, operation, target_time, recurring, sch_class, *args, **kwargs):
-        """
-        Schedule an operation to run at a specific time.
-        target_time should be a string in format "HH:MM"
-        """
         if not hasattr(self, operation):
             print(f"Operation {operation} is not available for {self.name}.")
             return
@@ -194,13 +187,13 @@ class SmartDevice():
 
     @classmethod
     def get_scheduled_operations(cls):
-        return cls.scheduled_operations
+        return cls._scheduled_operations
 
     @classmethod
     def add_scheduled_operation(cls, operation):
         if not isinstance(operation, ScheduledOperation):
             raise TypeError("Only scheduled_operation instances can be added.")
-        cls.scheduled_operations.append(operation)
+        cls._scheduled_operations.append(operation)
         print(f"Scheduled operation {operation} has been added for {operation.device_serial_number}.")
 
     @classmethod
@@ -208,7 +201,7 @@ class SmartDevice():
         if not isinstance(operation, ScheduledOperation):
             raise TypeError("Only scheduled_operation instances can be removed.")
         try:
-            cls.scheduled_operations.remove(operation)
+            cls._scheduled_operations.remove(operation)
             print(f"Scheduled operation {operation} has been removed.")
         except ValueError:
             print(f"Scheduled operation {operation} was not found in the list.")
@@ -218,7 +211,7 @@ class SmartDevice():
         if not isinstance(device, SmartDevice):
             raise TypeError("Can only load scheduled operations for a SmartDevice instance.")
         print(f"Loading all scheduled operations for {device.name} with serial number {device.serial_number}.")
-        for operation in cls.scheduled_operations:
+        for operation in cls._scheduled_operations:
             if operation.device_serial_number == device.serial_number:
                 operation.load(device)
                 print(f"✓ Loaded scheduled operation {operation.operation} for {device.name} at {operation.target_time}.")
@@ -315,8 +308,9 @@ class SmartCamera(SmartDevice):
 
     # Method to turn the camera OFF and stop recording
     def turn_off(self):
+        self.stop_recording()
         super().turn_off()
-        self.recording = False
+
 
 # Child class for a Smart Appliance
 class SmartAppliance(SmartDevice):
@@ -341,6 +335,7 @@ class SmartSpeaker(SmartDevice):
     def __init__(self, name, volume=50):
         super().__init__(name, "Speaker")
         self.volume = volume
+        self.song_playing = None
         self.set_energy_consumption(3)
 
     # Magic Methods
@@ -367,17 +362,17 @@ class SmartSpeaker(SmartDevice):
 
     @is_on_check
     def play_music(self, song):
-        if self.is_on:
-            print(f"{self.name} is playing {song}.")
-        else:
-            print(f"{self.name} is OFF. Cannot play music.")
+        self.song_playing = song
+        print(f"{self.name} is playing {song}.")
 
     @is_on_check
     def stop_music(self):
-        if self.is_on:
-            print(f"{self.name} has stopped playing music.")
-        else:
-            print(f"{self.name} is OFF. Cannot stop music.")
+        self.song_playing = None
+        print(f"{self.name} has stopped playing music.")
+
+    def turn_off(self):
+        self.stop_music()
+        super().turn_off()
 
 # Child class for Smart Lock
 class SmartLock(SmartDevice):
@@ -426,6 +421,11 @@ class SmartDoorbell(SmartDevice):
     def stop_ringing(self):
         self.ringing = False
         print(f"{self.name} has stopped RINGING.")
+
+    def turn_off(self):
+        self.stop_ringing()
+        super().turn_off()
+
 
 # Child class for Smart Door
 class SmartDoor(SmartDevice):

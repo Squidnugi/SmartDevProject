@@ -1061,7 +1061,7 @@ class GUI():
     # Load all scheduled operations
     def load_scheduals(self):
         try:
-            SmartDevice.SmartDevice.scheduled_operations = self.scheduled_operations
+            SmartDevice.SmartDevice._scheduled_operations = self.scheduled_operations
             devices = []
             for i in self.networks:
                 devices.append(i.list_smart_devices())
@@ -1097,7 +1097,7 @@ if __name__ == "__main__":
     # Start the program
     gui.loop()
     # Save the GUI state to a file
-    gui.scheduled_operations = SmartDevice.SmartDevice.scheduled_operations
+    gui.scheduled_operations = SmartDevice.SmartDevice._scheduled_operations
     gui.device_count = SmartDevice.SmartDevice.get_device_count()
     gui.user_count = User.User.get_user_count()
     gui.home_count = User.SmartHome.get_home_count()
